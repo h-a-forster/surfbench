@@ -114,8 +114,11 @@ per-instrument quote time), so that rule is applied to Tardis data only.
   but the synthetic study does not exercise.
 - **Calibrator quality.** Our raw SVI (quasi-explicit plus polish) and eSSVI (Corbetta et al.
   with an added `rho` polish, DESIGN section 13) recover their own families to below 1e-7
-  vol point without noise, but an author's implementation could still do better on real
-  data. The optional svi-py oracle comparison was not run.
+  vol point without noise. On 60 noisy synthetic slices our SVI and SABR calibrators never
+  ended above the objective found by scipy's differential evolution (largest relative gap
+  1.8e-9; `results/calibrator-check/`), so they do not get stuck in visibly worse local
+  minima there. eSSVI and SSVI were not part of that check, real smiles may be harder, and
+  the optional svi-py oracle comparison was not run.
 - **Next-snapshot horizon.** 15 minutes measures stability, not forecasting skill.
 - **Multiple testing** covers only the 20 primary comparisons; every other number is a
   secondary, unadjusted estimate.

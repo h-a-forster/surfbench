@@ -1,0 +1,23 @@
+{
+  "n_surfaces": 60,
+  "seed": 20261024,
+  "models": {
+    "svi": {
+      "n": 60,
+      "share_ours_not_worse": 1.0,
+      "share_ours_within_1pct": 1.0,
+      "median_rel_gap": 8.432955237677499e-12,
+      "max_rel_gap": 1.7928464023115338e-09,
+      "share_ours_better_by_1pct": 0.0
+    },
+    "sabr": {
+      "n": 60,
+      "share_ours_not_worse": 1.0,
+      "share_ours_within_1pct": 1.0,
+      "median_rel_gap": -1.6518914549133443e-14,
+      "max_rel_gap": 1.204571538234614e-13,
+      "share_ours_better_by_1pct": 0.15
+    }
+  },
+  "wall_s": 843.0
+}

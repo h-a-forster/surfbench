@@ -158,6 +158,12 @@ study you download the data yourself under the provider's terms.
   with an IV error below 1e-7 vol point (the done-check is 0.01); 50 noisy surfaces fit
   without exceptions; SSVI and eSSVI constraints are asserted on every accepted fit, and
   their fits show zero butterfly, price-check and calendar violations.
+- **Calibrator check** (`scripts/calibrator_check.py`, results in
+  `results/calibrator-check/`): on one random slice from each of 60 noisy synthetic surfaces,
+  our raw SVI and SABR calibrators reach an objective no worse than scipy's differential
+  evolution with polishing under the same constraints (largest relative gap 1.8e-9 for SVI,
+  1.2e-13 for SABR); SABR is better than differential evolution by more than 1% on 15% of
+  slices.
 - **Diagnostics**: Durrleman's `g` and the call-price convexity check agree in sign on 200
   random SVI slices; the finite-difference density matches the Breeden-Litzenberger form of
   `g`.
