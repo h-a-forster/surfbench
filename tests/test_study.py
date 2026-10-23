@@ -120,6 +120,7 @@ def test_changed_config_refuses_resume(tmp_path: Path) -> None:
 
     with pytest.raises(RunMismatchError):
         run_study(cfg_path)
+    assert main(["study", "run", "--config", str(cfg_path)]) == 2  # clean message, no traceback
     assert run_study(cfg_path, force_new=True)["ok"] == 2
 
 

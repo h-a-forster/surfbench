@@ -707,3 +707,7 @@ Every deviation from sections 4-7, with its reason.
 12. **Report details (6.4).** `n_perm` is read from `[report]` (default 100,000). Regime
     differences of pairwise differences resample the calm and stress groups independently.
     Rank probabilities use the dates where every model has a finite primary metric.
+13. **Sizing (6.5), measured.** Four units from live Deribit pairs of 2026-10-23 (about 300
+    filtered quotes in 10 expiries each) took 21-43 s (mean 29 s) on one worker, so the
+    quick study is about 9 minutes and the full study about 30 minutes with 3 workers; the
+    config headers carry these numbers. The 24-month synthetic study took 492 s.

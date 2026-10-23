@@ -91,10 +91,10 @@ README.md. It was not run because the free Tardis.dev download answered every re
 extractor is tested offline only; its first real run will also be the first check of the
 2019-2020 file layout.
 
-Measured compute on real data: two units from a live Deribit snapshot pair of 2026-10-23
-(about 300 filtered quotes in 10 expiries per underlying) took 21 and 25 seconds each, so
-the quick study should take about 7 minutes and the full study about 25 minutes with 3
-workers. Following the data-licence policy (DESIGN section 3), no error or arbitrage
+Measured compute on real data: four units from two live Deribit snapshot pairs of
+2026-10-23 (about 300 filtered quotes in 10 expiries per underlying) took 21 to 43 seconds
+each (mean 29 s, one worker on a shared machine), so the quick study should take about 9
+minutes and the full study about 30 minutes with 3 workers. Following the data-licence policy (DESIGN section 3), no error or arbitrage
 statistic from live snapshots is published.
 
 ## 4. The quote filter

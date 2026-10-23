@@ -70,7 +70,7 @@ uv run pytest
 
 ## Quick start
 
-Run the synthetic validation study (no download, about 6 minutes on 3 worker processes):
+Run the synthetic validation study (no download; about 8 minutes on 3 worker processes):
 
 ```sh
 uv run surfbench study run    --config configs/study_synthetic.toml --workers 3
@@ -134,9 +134,9 @@ a 15-minute horizon; `configs/study_full.toml` covers every month from 2019-04 w
 server answered `429` with a 24-hour `Retry-After`. The extractor records the lock in
 `cache/tardis/_quota.json`, makes no request until it expires, and fetches months in a seeded
 random order so that a partial download is a random subset rather than a chronological
-prefix. Compute is about 20 seconds per (date, underlying) unit on one core, so the quick
-study runs in about 7 minutes and the full study in about 25 minutes with 3 workers once the
-data is cached.
+prefix. Compute is about 30 seconds per (date, underlying) unit on one core (measured on 4 live
+Deribit units), so the quick study runs in about 9 minutes and the full study in about 30
+minutes with 3 workers once the data is cached.
 
 **Data licence.** Tardis.dev and Deribit data are licensed for research and personal use;
 redistribution, including manipulated or subsampled data, is not allowed. This repository

@@ -155,7 +155,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         name = " ".join(k for k in key if k)
         print(f"surfbench {name}: not implemented yet (milestone {milestone})", file=sys.stderr)
         return 2
-    return HANDLERS[key](args)
+    from surfbench.checkpoint import RunMismatchError
+
+    try:
+        return HANDLERS[key](args)
+    except (RunMismatchError, FileNotFoundError) as exc:
+        print(f"surfbench: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":  # pragma: no cover

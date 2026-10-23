@@ -1,7 +1,7 @@
 # Full study (docs/DESIGN.md section 6.5): every first-of-month snapshot 2019-04..2026-10
 # (months missing upstream are recorded as unavailable), 60-minute next-snapshot horizon.
-# Compute: measured 21-25 s per unit on live Deribit snapshots (2026-10-23), so about 25 minutes
-# for about 182 units with 3 workers (earlier years have fewer quotes and run faster);
+# Compute: measured 21-43 s (mean 29 s) per unit on 4 live Deribit units (2026-10-23), so about
+# 30 minutes for about 182 units with 3 workers (earlier years have fewer quotes and run faster);
 # the download (projected 15-30 GB streamed) is quota-limited and spans many sessions.
 
 [study]
