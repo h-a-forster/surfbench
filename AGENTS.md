@@ -104,10 +104,17 @@ Done:
   Vogt slice, admissible SSVI sets, eSSVI butterfly/calendar examples match the reference
   values; `g` and price checks agree on random SVI slices; noisy SSVI/eSSVI fits show no
   violations.
+- M4 (offline parts): `quotes` (canonical snapshot files with SHA-256, filter steps 1-7 with
+  per-step counts, data-quality diagnostics), `data.tardis` (streaming extractor with early
+  stop, 404/429/timeout handling, quota file, cache cap, seeded month order, session cap),
+  `data.deribit` (live summary adapter), `data tardis|deribit|status` CLI. All adapter
+  tests are offline (fake opener). A live Deribit smoke test gave plausible step counts
+  (BTC: 930 instruments, 318 quotes in 10 slices after the filter).
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
   around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC.
 
-Next (in order): M4 filter freeze on live Deribit
-snapshots, then Tardis extraction as the quota allows; M5 runner and report; M6 quick study.
+Next (in order): filter freeze on live Deribit
+snapshots (live pairs are being collected under `cache/deribit/`), then Tardis extraction as
+the quota allows; M5 runner and report; M6 quick study.
