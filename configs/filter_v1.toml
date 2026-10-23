@@ -1,0 +1,30 @@
+# Pre-registered quote filter, version 1 (docs/DESIGN.md section 5.2).
+#
+# Status: PROVISIONAL. The thresholds are frozen at milestone M4 using live Deribit API
+# snapshots only, never Tardis study months, and recorded with their date in CHANGELOG.md.
+# After freezing, any change needs a new file (filter_v2.toml) and a rerun of every study.
+
+version = 1
+
+[instruments]
+underlyings = ["BTC", "ETH"]
+# Coin-settled (inverse) options only; linear USDC options are excluded.
+symbol_regex = '^(BTC|ETH)-\d{1,2}[A-Z]{3}\d{2}-\d+(d\d+)?-[CP]$'
+
+[quote]
+max_quote_age_s = 300          # snapshot time minus exchange timestamp of the last ticker row
+require_two_sided = true       # bid and ask both present, ask > bid > 0
+min_bid_coin = 0.0002          # two ticks; one-tick bids in the wings are mostly stale
+otm_only = true                # calls with K >= F, puts with K < F
+min_abs_delta = 0.02           # Black forward delta at the mid implied volatility
+max_spread_iv = 0.15           # ask IV minus bid IV, decimal (15 vol points)
+min_iv = 0.05
+max_iv = 5.0
+
+[expiry]
+min_days = 2.0
+max_days = 550.0
+forward_source = "underlying_price"   # median over the expiry's options at the snapshot
+max_forward_dispersion = 0.001        # (max - min) / median of underlying_price within the expiry
+min_quotes = 8                        # so every 5-fold training set keeps >= 6 quotes
+min_quotes_each_side = 2              # at least 2 quotes with k < 0 and 2 with k >= 0

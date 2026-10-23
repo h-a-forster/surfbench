@@ -1,0 +1,65 @@
+cff-version: 1.2.0
+message: "If you use surfbench, please cite it as below."
+title: surfbench
+abstract: >-
+  A benchmark of implied volatility surface fits (raw SVI, SSVI, eSSVI, SABR and a
+  quadratic baseline) on Deribit BTC and ETH options, scoring cross-validated accuracy,
+  next-snapshot error and static-arbitrage violations with month-level confidence
+  intervals.
+type: software
+authors:
+  - name: surfbench contributors
+license: MIT
+version: 0.0.1
+keywords:
+  - implied volatility
+  - volatility surface
+  - SVI
+  - SSVI
+  - SABR
+  - static arbitrage
+references:
+  - type: article
+    authors:
+      - family-names: Gatheral
+        given-names: Jim
+      - family-names: Jacquier
+        given-names: Antoine
+    title: Arbitrage-free SVI volatility surfaces
+    journal: Quantitative Finance
+    volume: 14
+    issue: 1
+    start: 59
+    end: 71
+    year: 2014
+  - type: article
+    authors:
+      - family-names: Corbetta
+        given-names: Jacopo
+      - family-names: Cohort
+        given-names: Pierre
+      - family-names: Laachir
+        given-names: Ismail
+      - family-names: Martini
+        given-names: Claude
+    title: Robust calibration and arbitrage-free interpolation of SSVI slices
+    journal: Decisions in Economics and Finance
+    volume: 42
+    issue: 2
+    start: 665
+    end: 677
+    year: 2019
+    doi: 10.1007/s10203-019-00249-8
+  - type: article
+    authors:
+      - family-names: Hagan
+        given-names: Patrick
+      - family-names: Kumar
+        given-names: Deep
+      - family-names: Lesniewski
+        given-names: Andrew
+      - family-names: Woodward
+        given-names: Diana
+    title: Managing smile risk
+    journal: Wilmott Magazine
+    year: 2002

@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tmp/
+.env
+
+# Market data and run outputs are never committed (licence terms: see docs/DESIGN.md section 3).
+# Only aggregate error statistics go in results/.
+data/
+cache/
+runs/
+*.csv.gz
