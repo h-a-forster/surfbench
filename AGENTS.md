@@ -99,10 +99,15 @@ Done:
   is below 1e-7 vol point for every model; constraints are asserted on every accepted
   fit. Deviations in DESIGN section 13. Optional svi-py/QuantLib oracle fixtures were not
   produced (SABR is already checked against QuantLib through the reference values).
+- M3: `arbitrage` (Durrleman `g` on wide and in-range grids, call-price monotonicity and
+  convexity cross-check, calendar gaps between adjacent accepted slices, slope bound).
+  Vogt slice, admissible SSVI sets, eSSVI butterfly/calendar examples match the reference
+  values; `g` and price checks agree on random SVI slices; noisy SSVI/eSSVI fits show no
+  violations.
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
   around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC.
 
-Next (in order): M3 `arbitrage`; M4 filter freeze on live Deribit
+Next (in order): M4 filter freeze on live Deribit
 snapshots, then Tardis extraction as the quota allows; M5 runner and report; M6 quick study.

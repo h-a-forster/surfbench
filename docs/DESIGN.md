@@ -670,3 +670,12 @@ Every deviation from sections 4-7, with its reason.
    fitted surface instead of `(model, params)`; `random_surface(family, rng, expiries)` draws
    admissible parameters per family. Default grids include `k = 0`, so SSVI's stage-1
    `theta*` is exact on noise-free data.
+6. **Wide grid covers the quotes (4.4).** The wide grid spans
+   `[min(-4 sqrt(theta_j), min k), max(4 sqrt(theta_j), max k)]`, so it always contains the
+   in-range grid and `bfly_viol_wide >= bfly_viol_inrange`. For short or low-variance slices
+   the quoted range can extend beyond `+-4 sqrt(theta_j)` (Gatheral-Jacquier's Vogt slice
+   has `theta = 0.018` and its violation sits at `k` in `[0.64, 1.26]`).
+7. **Price cross-check numerics (4.4).** Divided differences use `c = o + (1 - K)^+`, with
+   `o` the out-of-the-money price and the intrinsic part differenced exactly. Differencing
+   deep in-the-money call prices directly loses about 1e-7 to rounding on the wide grid of
+   a long expiry, far above the 1e-10 tolerance.
