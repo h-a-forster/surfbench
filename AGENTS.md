@@ -85,18 +85,18 @@ projected 6-15 minutes, download projected 15-30 GB over many quota windows). Wa
 Updated: 2026-10-24.
 
 Done:
-- Scaffold: package skeleton, CLI stub (`--version`; other commands exit 2 naming their
-  milestone), configs, CI, hygiene files, `docs/DESIGN.md`.
-- Research checks recorded in DESIGN: Tardis terms (no redistribution; aggregate statistics
-  only), file layout and size (17.9 GB for 2026-10-01, state dump at midnight, ordered by
-  arrival, about 10 MB per minute), Deribit coin-price convention verified on a live
-  snapshot, reference values (SABR agrees with QuantLib 1.44 to 12 decimals).
+- Scaffold: package skeleton, CLI stub, configs, CI, hygiene files, `docs/DESIGN.md`.
+- Research checks recorded in DESIGN (Tardis terms and file layout, Deribit coin-price
+  convention, reference values agreeing with QuantLib 1.44).
+- M1: `black` (prices, vega, delta, safeguarded Newton-bisection IV inversion), `stats`
+  (bootstrap and moving-block bootstrap, pooled-ratio bootstrap, sign-flip test, Holm, rank
+  probabilities), `checkpoint` (atomic unit files, manifest check, progress log, path
+  scrubbing, process pool capped at 3, retries up to 3 attempts). Tests in
+  `tests/test_black.py`, `test_stats.py`, `test_checkpoint.py`.
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
-  around 21:45 UTC after the probing above. Do not request Tardis files before
-  2026-10-24 22:00 UTC. M1-M3 and the offline parts of M4 do not need the data.
+  around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC.
 
-Next (in order): M1 `black`, `stats`, `checkpoint`; M2 models and `synthetic`; M3
-`arbitrage`; M4 filter freeze on live Deribit snapshots, then Tardis extraction of the quick
-months as the quota allows; M5 runner and report; M6 quick study and REPORT.md.
+Next (in order): M2 models and `synthetic`; M3 `arbitrage`; M4 filter freeze on live Deribit
+snapshots, then Tardis extraction as the quota allows; M5 runner and report; M6 quick study.
