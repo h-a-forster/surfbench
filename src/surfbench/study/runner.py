@@ -144,7 +144,9 @@ def ensure_synthetic(cfg: StudyConfig, underlyings: tuple[str, ...]) -> None:
             exps = tuple(t0 - 60_000_000 + int(dd * 86400e6) for dd in SYN_DAYS)
             T0 = tuple((e - t0) / 1e6 / YEAR_SECONDS for e in exps)
             T1 = tuple((e - t1) / 1e6 / YEAR_SECONDS for e in exps)
-            surf = synthetic.random_surface(family, rng, T0)
+            surf = synthetic.random_surface(
+                family, rng, T0, arbitrage_free=bool(d.get("truth_arbitrage_free", True))
+            )
             F0 = SYN_FORWARD.get(und, 100.0) * float(rng.uniform(0.7, 1.4))
             fwd0 = tuple(F0 * (1.0 + 0.03 * t) for t in T0)
             move = float(rng.normal(0.0, 0.003))

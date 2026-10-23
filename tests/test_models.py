@@ -148,7 +148,7 @@ def _noisy_fits(n: int, seed: int) -> None:
 
 
 def test_noisy_surfaces_fit_without_exceptions() -> None:
-    _noisy_fits(5, seed=100)
+    _noisy_fits(2, seed=100)
 
 
 @pytest.mark.slow

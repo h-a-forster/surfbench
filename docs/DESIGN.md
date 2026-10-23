@@ -1,6 +1,6 @@
 # surfbench design
 
-Status: scaffold (2026-10-24). This document is the specification for v0.1. Formulas,
+Status: implemented in v0.1.0 (2026-10-24). This document is the specification for v0.1. Formulas,
 constraints, reference values and done-checks here are binding for the implementation;
 deviations go in section 12 with a reason.
 
@@ -669,7 +669,14 @@ Every deviation from sections 4-7, with its reason.
 5. **Synthetic API (7.2).** `make_snapshot(surface, grids, noise, spread, seed)` takes any
    fitted surface instead of `(model, params)`; `random_surface(family, rng, expiries)` draws
    admissible parameters per family. Default grids include `k = 0`, so SSVI's stage-1
-   `theta*` is exact on noise-free data.
+   `theta*` is exact on noise-free data. Per-slice families share their shape parameters
+   across expiries with small jitter (SABR: `nu` decays as `T^-0.3`), and with
+   `arbitrage_free=True` a draw is repeated until the diagnostics find no butterfly,
+   price-check or calendar violation. The synthetic study uses arbitrage-free truths: a first
+   run with independent per-slice SVI and SABR draws produced truths with calendar
+   arbitrage and Hagan wings beyond Lee's bound, which the arbitrage-free models cannot fit
+   (eSSVI CV errors up to 28 vol points), so that comparison measured the truth's arbitrage
+   rather than the models.
 6. **Wide grid covers the quotes (4.4).** The wide grid spans
    `[min(-4 sqrt(theta_j), min k), max(4 sqrt(theta_j), max k)]`, so it always contains the
    in-range grid and `bfly_viol_wide >= bfly_viol_inrange`. For short or low-variance slices

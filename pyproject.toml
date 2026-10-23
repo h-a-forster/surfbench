@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "surfbench"
-version = "0.0.1"
+version = "0.1.0"
 description = "Benchmark of arbitrage-free implied volatility surface fits (SVI, SSVI, eSSVI, SABR) on Deribit BTC and ETH options: held-out accuracy, next-snapshot error and static-arbitrage violations, with confidence intervals."
 readme = "README.md"
 license = "MIT"
@@ -16,7 +16,7 @@ keywords = [
     "static-arbitrage", "options", "deribit", "benchmark", "quant",
 ]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Financial and Insurance Industry",

@@ -169,7 +169,7 @@ class EssviModel:
 
         def profile(rho: float) -> float:
             r = self._search(loss, np.array([rho]), k_star, theta_star, prev)
-            return math.inf if r is None else r[0]
+            return 1e300 if r is None else r[0]  # finite, so Brent arithmetic stays defined
 
         res = minimize_scalar(profile, bounds=(lo, hi), method="bounded", options={"xatol": 1e-9})
         cand = self._search(loss, np.array([float(res.x)]), k_star, theta_star, prev)

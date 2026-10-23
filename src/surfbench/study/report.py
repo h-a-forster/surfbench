@@ -243,6 +243,19 @@ def build_summary(cfg: StudyConfig) -> dict[str, Any]:
             }
             for r in ("calm", "stress")
         }
+        # Synthetic studies: primary metric by true generating family.
+        truths = sorted({str(u.get("truth")) for u in uu if u.get("truth")})
+        if truths:
+            tr = np.array([str(u.get("truth")) for u in uu])
+            block["by_truth"] = {
+                t: {
+                    m: bootstrap_mean(
+                        prim[tr == t, i], n_boot=n_boot, alpha=alpha, seed=seed
+                    ).as_dict()
+                    for i, m in enumerate(models)
+                }
+                for t in truths
+            }
         summary["by_underlying"][und] = block
 
     # Primary family: all pairwise differences, both underlyings, Holm across the family.
@@ -293,6 +306,12 @@ def _fmt_iv(d: dict[str, Any], digits: int = 3, pct: bool = False) -> str:
     if lo is not None and hi is not None and math.isfinite(lo) and math.isfinite(hi):
         s += f" [{lo * f:.{digits}f}, {hi * f:.{digits}f}]"
     return s
+
+
+def _fmt_p(p: float) -> str:
+    if not math.isfinite(p):
+        return "n/a"
+    return f"{p:.1e}" if p < 1e-3 else f"{p:.4f}"
 
 
 def render_leaderboard(summary: dict[str, Any]) -> str:
@@ -348,6 +367,19 @@ def render_leaderboard(summary: dict[str, Any]) -> str:
             ),
             "",
         ]
+        if b.get("by_truth"):
+            truths = list(b["by_truth"])
+            lines += [
+                "CV RMSE by true generating family (synthetic data):",
+                "",
+                "| model | " + " | ".join(truths) + " |",
+                "|---|" + "---|" * len(truths),
+            ]
+            for m in models:
+                lines.append(
+                    f"| {m} | " + " | ".join(_fmt_iv(b["by_truth"][t][m]) for t in truths) + " |"
+                )
+            lines.append("")
         rc = b["regime_counts"]
         if rc.get("stress", 0) and rc.get("calm", 0):
             lines += [
@@ -378,7 +410,7 @@ def render_leaderboard(summary: dict[str, Any]) -> str:
         ci = "n/a" if t["lo"] is None else f"[{t['lo']:+.3f}, {t['hi']:+.3f}]"
         lines.append(
             f"| {t['underlying']} | {t['a']} | {t['b']} | {md} | {ci} | {t['n']} | "
-            f"{t['p']:.4f} | {t.get('p_holm', float('nan')):.4f} |"
+            f"{_fmt_p(t['p'])} | {_fmt_p(t.get('p_holm', float('nan')))} |"
         )
     missing = summary.get("dates_missing", [])
     lines += [

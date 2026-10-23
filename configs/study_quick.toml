@@ -1,7 +1,8 @@
 # Quick study (docs/DESIGN.md section 6.5): quarterly first-of-month snapshots 2020-01..2026-10,
-# 15-minute next-snapshot horizon. Compute is projected at about 5 minutes with 3 workers once the
-# snapshots are cached; the Tardis download (projected 2-3 GB streamed, quota-limited) may span
-# several days and resumes month by month.
+# 15-minute next-snapshot horizon. Compute: measured 21-25 s per (date, underlying) unit on
+# live Deribit snapshots of 2026-10-23 (about 300 quotes in 10 expiries per unit), so about
+# 7 minutes for 56 units with 3 workers once the snapshots are cached. The Tardis download
+# (projected 2-3 GB streamed, quota-limited) may span several days and resumes month by month.
 
 [study]
 name = "quick-v1"

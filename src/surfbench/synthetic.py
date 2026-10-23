@@ -104,8 +104,32 @@ def random_surface(
     family: str,
     rng: np.random.Generator,
     expiries: tuple[float, ...] = DEFAULT_EXPIRIES,
+    *,
+    arbitrage_free: bool = False,
+    max_tries: int = 500,
 ) -> FittedSurface:
-    """A random, plausible surface of the given family (crypto-like levels and skews)."""
+    """A random, plausible surface of the given family (crypto-like levels and skews).
+
+    Per-slice families (SVI, SABR, baseline) share their shape parameters across expiries
+    with small jitter, so smiles evolve smoothly in maturity. With ``arbitrage_free`` the
+    draw is repeated until :func:`surfbench.arbitrage.diagnose` finds no butterfly,
+    price-check or calendar violation on the default grids.
+    """
+    if not arbitrage_free:
+        return _draw_surface(family, rng, expiries)
+    from surfbench.arbitrage import diagnose
+
+    for _ in range(max_tries):
+        surf = _draw_surface(family, rng, expiries)
+        d = diagnose(surf, k_grids(surf))
+        if d["n_bfly_wide"] == 0 and d["n_price_wide"] == 0 and d["n_cal"] == 0:
+            return surf
+    raise RuntimeError(f"no arbitrage-free {family} surface in {max_tries} draws")
+
+
+def _draw_surface(
+    family: str, rng: np.random.Generator, expiries: tuple[float, ...]
+) -> FittedSurface:
     T = np.asarray(expiries, dtype=float)
     n = T.size
     atm = _atm_vols(rng, n)
@@ -134,15 +158,19 @@ def random_surface(
                 return EssviModel.surface(expiries, [list(s) for s in slices])
         raise RuntimeError("could not draw an admissible eSSVI surface")  # pragma: no cover
     if family == "svi":
+        rho0 = rng.uniform(-0.5, 0.3)
+        m0 = rng.uniform(-0.3, 0.3)
+        sig0 = rng.uniform(0.3, 1.5)
+        b0 = rng.uniform(0.3, 0.8)
         params = []
         for j in range(n):
             for _ in range(1000):
                 v = float(theta[j])
                 s = np.sqrt(v)
-                rho = rng.uniform(-0.5, 0.3)
-                m = rng.uniform(-0.3, 0.3) * s
-                sig = rng.uniform(0.3, 1.5) * s
-                b = rng.uniform(0.3, 0.8) * s
+                rho = float(np.clip(rho0 + rng.normal(0.0, 0.03), -0.9, 0.9))
+                m = (m0 + rng.normal(0.0, 0.03)) * s
+                sig = max(sig0 * (1.0 + rng.normal(0.0, 0.05)), 0.1) * s
+                b = max(b0 * (1.0 + rng.normal(0.0, 0.05)), 0.05) * s
                 a = v - b * (rho * (-m) + np.sqrt(m * m + sig * sig))
                 if (
                     svi_constraints_ok(a, b, rho, m, sig)
@@ -150,12 +178,21 @@ def random_surface(
                 ):
                     params.append([float(a), float(b), float(rho), float(m), float(sig)])
                     break
+                b0, sig0 = 0.9 * b0, 0.95 * sig0  # shrink towards admissible values
             else:  # pragma: no cover
                 raise RuntimeError("could not draw an admissible SVI slice")
         return SviModel.surface(expiries, params)
     if family == "sabr":
+        rho0 = rng.uniform(-0.4, 0.3)
+        nu0 = rng.uniform(0.5, 2.0)  # vol of vol at T = 0.25, decaying as T^-0.3
         params = [
-            [float(atm[j]), float(rng.uniform(-0.4, 0.3)), float(rng.uniform(0.5, 2.5))]
+            [
+                float(atm[j]),
+                float(np.clip(rho0 + rng.normal(0.0, 0.03), -0.9, 0.9)),
+                float(
+                    np.clip(nu0 * (T[j] / 0.25) ** -0.3 * (1.0 + rng.normal(0.0, 0.05)), 0.2, 4.0)
+                ),
+            ]
             for j in range(n)
         ]
         return SabrModel.surface(expiries, params)

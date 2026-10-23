@@ -1,7 +1,8 @@
 # Synthetic validation study (docs/DESIGN.md section 7.2): the whole pipeline (quote filter,
 # implied volatilities, five models, cross-validation, next snapshot, arbitrage diagnostics,
 # report) on snapshots generated from known surfaces. The true family rotates over eSSVI,
-# raw SVI and SABR month by month; mid IVs carry 0.5 vol point of noise and spreads widen in
+# raw SVI and SABR month by month (each truth is drawn free of static arbitrage on the
+# diagnostic grids); mid IVs carry 0.5 vol point of noise and spreads widen in
 # the wings. No market data is involved, so these results can be committed in full.
 
 [study]
@@ -18,6 +19,7 @@ months = ["2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "202
 t0 = "00:01:00"
 horizon_min = 15
 truth = ["essvi", "svi", "sabr"]
+truth_arbitrage_free = true  # redraw truths until no butterfly, price-check or calendar violation
 noise = 0.005                # mid IV noise, decimal (0.5 vol point)
 spread = 0.02                # full bid-ask spread at the money, decimal (2 vol points)
 spread_wing = 0.5            # spread multiplier 1 + spread_wing * |k| / sqrt(theta)
