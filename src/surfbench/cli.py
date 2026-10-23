@@ -13,11 +13,7 @@ from typing import Any
 
 from surfbench import __version__
 
-PENDING: dict[tuple[str, str | None], str] = {
-    ("fit", None): "M5",
-    ("study", "run"): "M5",
-    ("study", "report"): "M5",
-}
+PENDING: dict[tuple[str, str | None], str] = {}
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -679,3 +679,24 @@ Every deviation from sections 4-7, with its reason.
    `o` the out-of-the-money price and the intrinsic part differenced exactly. Differencing
    deep in-the-money call prices directly loses about 1e-7 to rounding on the wide grid of
    a long expiry, far above the 1e-10 tolerance.
+8. **Run manifest (7.3).** `manifest.json` holds the study name, source, filter hash and
+   version, package version, seed, model list, fit and arbitrage settings, horizon and
+   `t0`; a change refuses the resume. Snapshot SHA-256s are stored in each unit file
+   instead of the manifest, and a finished unit whose snapshot hash no longer matches the
+   download metadata stops the run. This lets months downloaded in later quota windows join
+   an existing run without starting over.
+9. **Quote persistence set (5.3, 6.2).** "Share of `t0` instruments still present at `t1`"
+   is computed on the filtered sets: the Tardis state at `t1` contains every instrument seen
+   at `t0`, so the raw share would always be 1.
+10. **Price check scope (4.4).** The price cross-check flags both convexity violations
+    (negative density) and monotonicity violations (call prices increasing in strike, that
+    is a negative digital price). Durrleman's `g` covers only the density, so a fit can pass
+    `g` and fail the price check; this happens for the quadratic baseline, whose wings grow
+    too fast. The report keeps the two counts separate.
+11. **Extra data sources (5.1, 6.2).** Besides `tardis`, the runner accepts
+    `source = "deribit"` (live pairs saved by `data deribit`; development and timing only)
+    and `source = "synthetic"` (snapshots generated from known surfaces with a fixed strike
+    grid, noisy mid IVs and spreads that widen in the wings; `configs/study_synthetic.toml`).
+12. **Report details (6.4).** `n_perm` is read from `[report]` (default 100,000). Regime
+    differences of pairwise differences resample the calm and stress groups independently.
+    Rank probabilities use the dates where every model has a finite primary metric.

@@ -168,6 +168,16 @@ def random_surface(
     raise ValueError(f"unknown family {family!r}")
 
 
+def strike_step(F: float) -> float:
+    """A 1-2-5 strike step of about ``F / 200`` (300 -> 500 for F = 60000)."""
+    raw = F / 200.0
+    mag = 10.0 ** np.floor(np.log10(raw))
+    for m in (1.0, 2.0, 5.0, 10.0):
+        if raw <= m * mag:
+            return float(m * mag)
+    return float(10.0 * mag)  # pragma: no cover
+
+
 _MON = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
 
@@ -182,43 +192,68 @@ def instrument_name(underlying: str, expiration_us: int, strike: float, is_call:
     )
 
 
+@dataclass
+class ScaledSurface(FittedSurface):
+    """``w = factor^2 * w_base`` (every implied volatility multiplied by ``factor``)."""
+
+    base: FittedSurface | None = None
+    factor: float = 1.0
+
+    def _w(self, j: int, k: Float) -> Float:
+        assert self.base is not None
+        return self.factor**2 * self.base.w(j, k)
+
+
 def make_quote_snapshot(
     surface: FittedSurface,
     *,
     underlying: str,
-    forward: float,
+    forward: float | tuple[float, ...],
     time_us: int,
     expirations_us: tuple[int, ...],
     n_strikes: int = 21,
     z: tuple[float, float] = (-2.5, 2.5),
     noise: float = 0.005,
     spread: float = 0.02,
+    spread_wing: float = 0.0,
+    strikes: tuple[Float, ...] | None = None,
     seed: int = 0,
 ):
     """Coin-priced quotes (calls and puts on every strike) from ``surface``.
 
-    Slice ``j`` of ``surface`` must correspond to ``expirations_us[j]``. Mid IVs get
-    ``N(0, noise)`` noise; bid and ask prices are the prices at ``mid -+ spread/2``.
-    Strikes are rounded to integers.
+    Slice ``j`` of ``surface`` must correspond to ``expirations_us[j]``; ``forward`` is one
+    value or one per expiry. Mid IVs get ``N(0, noise)`` noise; the full spread is
+    ``spread * (1 + spread_wing * |k| / sqrt(theta))`` and bid and ask prices are the prices
+    at ``mid -+ spread/2``. Without ``strikes``, strikes are ``n_strikes`` points spanning
+    ``z`` ATM standard deviations, rounded to a 1-2-5 step of about ``F / 200``.
     """
     from surfbench.black import call_price, put_price
     from surfbench.quotes import YEAR_SECONDS, Snapshot
 
     rng = np.random.default_rng(seed)
+    fwd = (forward,) * len(expirations_us) if np.isscalar(forward) else tuple(forward)
+    if len(fwd) != len(expirations_us):
+        raise ValueError("forward must be a scalar or one value per expiry")
     records = []
     for j, exp in enumerate(expirations_us):
+        F = float(fwd[j])
         T = (exp - time_us) / 1e6 / YEAR_SECONDS
         if abs(T - surface.expiries[j]) > 1e-9:
             raise ValueError("surface expiries do not match expirations_us")
         s_atm = float(np.sqrt(max(float(surface.w(j, np.array([0.0]))[0]), 1e-8)))
-        ks = np.linspace(z[0] * s_atm, z[1] * s_atm, n_strikes)
-        strikes = np.unique(np.round(forward * np.exp(ks)))
-        k = np.log(strikes / forward)
+        if strikes is None:
+            ks = np.linspace(z[0] * s_atm, z[1] * s_atm, n_strikes)
+            step = strike_step(F)
+            Ks = np.unique(np.maximum(np.round(F * np.exp(ks) / step), 1.0) * step)
+        else:
+            Ks = np.unique(np.asarray(strikes[j], dtype=float))
+        k = np.log(Ks / F)
         mid = surface.iv(j, k) + rng.normal(0.0, noise, k.size)
         mid = np.maximum(mid, 0.05)
-        for i, K in enumerate(strikes):
-            lo = max(mid[i] - spread / 2, 1e-3) * np.sqrt(T)
-            hi = (mid[i] + spread / 2) * np.sqrt(T)
+        half = 0.5 * spread * (1.0 + spread_wing * np.abs(k) / s_atm)
+        for i, K in enumerate(Ks):
+            lo = max(mid[i] - half[i], 1e-3) * np.sqrt(T)
+            hi = (mid[i] + half[i]) * np.sqrt(T)
             for is_call in (True, False):
                 f = call_price if is_call else put_price
                 bid, ask = float(f(k[i], lo)), float(f(k[i], hi))
@@ -233,9 +268,9 @@ def make_quote_snapshot(
                         "ask_price": ask,
                         "mark_price": 0.5 * (bid + ask),
                         "mark_iv": 100 * mid[i],
-                        "underlying_price": forward,
-                        "bid_iv": 100 * (mid[i] - spread / 2),
-                        "ask_iv": 100 * (mid[i] + spread / 2),
+                        "underlying_price": F,
+                        "bid_iv": 100 * (mid[i] - half[i]),
+                        "ask_iv": 100 * (mid[i] + half[i]),
                     }
                 )
     return Snapshot.from_records(time_us, records)

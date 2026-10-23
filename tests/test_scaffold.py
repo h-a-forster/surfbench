@@ -53,9 +53,9 @@ def test_cli_version(capsys: pytest.CaptureFixture[str]) -> None:
     assert capsys.readouterr().out.startswith("surfbench ")
 
 
-def test_cli_pending_command_exits_2(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["study", "report", "--config", "configs/study_quick.toml"]) == 2
-    assert "milestone M5" in capsys.readouterr().err
+def test_cli_no_command_prints_help(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main([]) == 0
+    assert "surfbench" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("name", ["filter_v1.toml", "study_quick.toml", "study_full.toml"])

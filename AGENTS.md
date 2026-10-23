@@ -110,6 +110,13 @@ Done:
   `data.deribit` (live summary adapter), `data tardis|deribit|status` CLI. All adapter
   tests are offline (fake opener). A live Deribit smoke test gave plausible step counts
   (BTC: 930 instruments, 318 quotes in 10 slices after the filter).
+- M5: `metrics` (folds, IV errors, inside-spread rate), `study.runner` (tardis, deribit and
+  synthetic sources; CV, wing, full and next-snapshot fits; arbitrage diagnostics;
+  checkpointed units, 3 workers max), `study.report` (bootstrap intervals, moving-block
+  robustness, sign-flip tests with Holm over 20 tests, rank probabilities, pooled arbitrage
+  shares, exploratory calm/stress split; `summary.json` and `leaderboard.md`), `fit`,
+  `study run` and `study report` CLI. Synthetic end-to-end, resume and report-equals-
+  recomputation tests pass.
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
@@ -117,4 +124,4 @@ Blocked or watch:
 
 Next (in order): filter freeze on live Deribit
 snapshots (live pairs are being collected under `cache/deribit/`), then Tardis extraction as
-the quota allows; M5 runner and report; M6 quick study.
+the quota allows; M6 quick study.

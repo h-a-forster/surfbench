@@ -1,0 +1,45 @@
+# Synthetic validation study (docs/DESIGN.md section 7.2): the whole pipeline (quote filter,
+# implied volatilities, five models, cross-validation, next snapshot, arbitrage diagnostics,
+# report) on snapshots generated from known surfaces. The true family rotates over eSSVI,
+# raw SVI and SABR month by month; mid IVs carry 0.5 vol point of noise and spreads widen in
+# the wings. No market data is involved, so these results can be committed in full.
+
+[study]
+name = "synthetic-v1"
+out_dir = "runs/synthetic-v1"
+results_dir = "results/synthetic-v1"
+seed = 20261023
+workers = 3
+
+[data]
+source = "synthetic"
+cache_dir = "cache/synthetic-v1"
+months = ["2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12"]
+t0 = "00:01:00"
+horizon_min = 15
+truth = ["essvi", "svi", "sabr"]
+noise = 0.005                # mid IV noise, decimal (0.5 vol point)
+spread = 0.02                # full bid-ask spread at the money, decimal (2 vol points)
+spread_wing = 0.5            # spread multiplier 1 + spread_wing * |k| / sqrt(theta)
+n_strikes = 25
+
+[fit]
+filter = "configs/filter_v1.toml"
+models = ["baseline", "svi", "ssvi", "essvi", "sabr"]
+sabr_beta = 1.0
+n_folds = 5
+weight_floor_iv = 0.005
+
+[arbitrage]
+grid_z = [-4.0, 4.0]
+n_grid = 401
+g_tol = 1e-6
+calendar_tol = 1e-8
+
+[report]
+n_boot = 10000
+n_perm = 100000
+block_lengths = [1, 3]
+alpha = 0.05
+primary_metric = "cv_rmse_iv"
+stress_quantile = 0.75

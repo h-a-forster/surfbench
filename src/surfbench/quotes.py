@@ -37,6 +37,7 @@ __all__ = [
     "apply_filter",
     "data_quality",
     "file_sha256",
+    "merge_snapshots",
     "read_snapshot",
     "snapshot_bytes",
     "to_fit_input",
@@ -431,3 +432,18 @@ def data_quality(snap: Snapshot, filt: FilteredSnapshot) -> dict[str, float]:
                     gaps.append(abs(K / denom / s.F - 1.0))
     out["median_parity_forward_gap"] = float(np.median(gaps)) if gaps else math.nan
     return out
+
+
+def merge_snapshots(snaps: list[Snapshot]) -> Snapshot:
+    """Concatenate snapshots taken at the same time (symbols must not overlap)."""
+    if not snaps:
+        raise ValueError("nothing to merge")
+    t = snaps[0].time_us
+    if any(s.time_us != t for s in snaps):
+        raise ValueError("snapshots must share time_us")
+    fields = [f for f in Snapshot.__dataclass_fields__ if f != "time_us"]
+    cat = {f: np.concatenate([getattr(s, f) for s in snaps]) for f in fields}
+    if np.unique(cat["symbol"]).size != cat["symbol"].size:
+        raise ValueError("duplicate symbols across snapshots")
+    order = np.argsort(cat["symbol"], kind="stable")
+    return Snapshot(time_us=t, **{f: v[order] for f, v in cat.items()})
