@@ -93,10 +93,16 @@ Done:
   probabilities), `checkpoint` (atomic unit files, manifest check, progress log, path
   scrubbing, process pool capped at 3, retries up to 3 attempts). Tests in
   `tests/test_black.py`, `test_stats.py`, `test_checkpoint.py`.
+- M2: the five models (`models/`: baseline, raw SVI quasi-explicit + polish, SSVI power
+  law, eSSVI Corbetta et al. with a `rho` polish, SABR Hagan) behind one objective, and
+  `synthetic` (random admissible surfaces, noisy snapshots). Noise-free own-family recovery
+  is below 1e-7 vol point for every model; constraints are asserted on every accepted
+  fit. Deviations in DESIGN section 13. Optional svi-py/QuantLib oracle fixtures were not
+  produced (SABR is already checked against QuantLib through the reference values).
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
   around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC.
 
-Next (in order): M2 models and `synthetic`; M3 `arbitrage`; M4 filter freeze on live Deribit
+Next (in order): M3 `arbitrage`; M4 filter freeze on live Deribit
 snapshots, then Tardis extraction as the quota allows; M5 runner and report; M6 quick study.

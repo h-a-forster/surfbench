@@ -642,4 +642,31 @@ next-snapshot error together was found.
 
 ## 13. Implementation notes and deviations
 
-(Empty at scaffold time. Record every deviation from sections 4-7 here with its reason.)
+Every deviation from sections 4-7, with its reason.
+
+1. **IV inversion stopping rule (4.1).** When the Newton residual is exactly zero the
+   current iterate is kept (the strict bracket test would otherwise force one bisection
+   step away from the root). The round-trip check uses out-of-the-money prices, the side
+   the inversion works on; in-the-money inputs lose their time value to rounding (for
+   example a deep in-the-money call whose time value is 1e-17), so their check is limited
+   to time values of at least 1e-6.
+2. **SVI start grid (4.3.1).** The 5 x 5 start grid is `m` on 5 equally spaced points over
+   `[min k, max k]` and `sigma` on 5 log-spaced points over `[0.01, 1]`; Nelder-Mead then
+   searches the full box of section 4.3.1.
+3. **eSSVI `rho` polish (4.3.3).** After the 21-point grid and the 11-point refinement, a
+   bounded Brent search over `rho` on `[rho_best - 0.02, rho_best + 0.02]` (one refinement
+   step), with `psi` re-optimised inside, is accepted when it lowers `L`. Without it the
+   `rho` resolution of 0.02 limits noise-free own-family recovery to about 0.2 vol point,
+   which fails the 0.01 vol point done-check. The refinement grid is clipped to
+   `|rho| <= 0.99`.
+4. **SABR numerics (4.3.4).** `x(z)` is evaluated with `log1p` in a cancellation-free form
+   on both sides of `z = rho`, and `z/x(z)` uses its third-order series
+   `1 - rho z/2 + (1/6 - rho^2/4) z^2 + (5 rho/24 - rho^3/4) z^3` for `|z| < 1e-4`
+   instead of the first-order form below 1e-7. The first-order switch made finite-difference
+   second derivatives wrong by about 1e-4 near `k = 0`. Where Hagan's expansion is negative
+   (large `nu^2 T`), `w = max(sigma_B, 0)^2 T`, and a fit with a non-positive volatility at a
+   training quote is reported as `failed:invalid_vol`.
+5. **Synthetic API (7.2).** `make_snapshot(surface, grids, noise, spread, seed)` takes any
+   fitted surface instead of `(model, params)`; `random_surface(family, rng, expiries)` draws
+   admissible parameters per family. Default grids include `k = 0`, so SSVI's stage-1
+   `theta*` is exact on noise-free data.
