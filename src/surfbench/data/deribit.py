@@ -36,7 +36,12 @@ SUMMARY_URL = (
     "https://www.deribit.com/api/v2/public/get_book_summary_by_currency"
     "?currency={currency}&kind=option"
 )
-_MONTHS = {m: i + 1 for i, m in enumerate("JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split())}
+_MONTHS = {
+    m: i + 1
+    for i, m in enumerate(
+        ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+    )
+}
 _NAME = re.compile(r"^(BTC|ETH)-(\d{1,2})([A-Z]{3})(\d{2})-(\d+(?:d\d+)?)-([CP])$")
 USER_AGENT = f"surfbench/{__version__} (+research; public data)"
 
@@ -118,7 +123,7 @@ def save_live_pair(
     sleep: Callable[[float], None] = time.sleep,
     timeout: float = 30.0,
 ) -> Path:
-    """Save ``snap_t0`` (and ``snap_t1`` after ``horizon_min`` minutes) under ``out_dir/<stamp>``."""
+    """Save ``snap_t0`` (and ``snap_t1`` after ``horizon_min`` min) under ``out_dir/<stamp>``."""
     snap0 = _take(currencies, opener, timeout)
     stamp = datetime.fromtimestamp(snap0.time_us / 1e6, tz=UTC).strftime("%Y%m%dT%H%M%SZ")
     d = Path(out_dir) / stamp
