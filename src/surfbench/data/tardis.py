@@ -14,6 +14,7 @@ sessions refuse to start before ``not_before``. ``404`` marks the month ``unavai
 
 from __future__ import annotations
 
+import http.client
 import json
 import random
 import re
@@ -33,9 +34,11 @@ from surfbench.quotes import Snapshot, write_snapshot
 
 __all__ = [
     "TARDIS_COLUMNS",
+    "CacheFull",
     "InvalidData",
     "QuotaLocked",
     "TardisConfig",
+    "TruncatedStream",
     "extract_month",
     "month_status",
     "run_session",
@@ -101,6 +104,14 @@ class QuotaLocked(RuntimeError):
 
 class InvalidData(ValueError):
     """The stream violated the expected layout (columns, numbers, ordering)."""
+
+
+class TruncatedStream(EOFError):
+    """The connection ended before the gzip trailer: a network failure, retried."""
+
+
+class CacheFull(RuntimeError):
+    """The cache directory exceeds ``cache_cap_gb``."""
 
 
 @dataclass(frozen=True)
@@ -202,6 +213,10 @@ def stream_snapshots(
     while snap1 is None:
         chunk = read(CHUNK)
         if not chunk:
+            if not dec.eof:
+                # http.client returns b"" when a Content-Length body is cut short, and zlib
+                # does not complain about a missing trailer, so check it here.
+                raise TruncatedStream(f"stream ended before the gzip trailer ({bytes_read} B)")
             break
         bytes_read += len(chunk)
         buf += dec.decompress(chunk)
@@ -294,7 +309,7 @@ def extract_month(
         raise QuotaLocked(nb)
     cap = cfg.cache_cap_gb * 1e9
     if cache_size_bytes(cfg) > cap:
-        raise RuntimeError(f"cache exceeds cache_cap_gb = {cfg.cache_cap_gb}; refusing to write")
+        raise CacheFull(f"cache exceeds cache_cap_gb = {cfg.cache_cap_gb}; refusing to write")
     url = _url(month)
     t0_us, t1_us = cfg.times_us(month)
     out = cfg.month_dir(month)
@@ -345,7 +360,7 @@ def extract_month(
             meta.update(status="invalid", error=str(exc))
             atomic_write_json(out / "meta.json", meta)
             return meta
-        except (OSError, TimeoutError, zlib.error, EOFError) as exc:
+        except (OSError, TimeoutError, zlib.error, EOFError, http.client.HTTPException) as exc:
             last_err = scrub_paths(f"{type(exc).__name__}: {exc}")
         else:
             meta["bytes_streamed"] = res.bytes_read
@@ -408,6 +423,9 @@ def run_session(
         except QuotaLocked as exc:
             summary["stopped"] = str(exc)
             log(f"{month}: 429, {exc}")
+            break
+        except CacheFull as exc:
+            summary["stopped"] = str(exc)
             break
         summary["requested"].append({"month": month, "status": meta["status"]})
         log(f"{month}: {meta['status']} ({meta.get('bytes_streamed', 0) / 1e6:.1f} MB streamed)")

@@ -215,7 +215,7 @@ def test_cache_cap_refuses(tmp_path: Path) -> None:
     cfg = _cfg(tmp_path, cache_cap_gb=1e-9)
     cfg.cache_dir.mkdir(parents=True)
     (cfg.cache_dir / "junk.bin").write_bytes(b"x" * 10)
-    with pytest.raises(RuntimeError, match="cache"):
+    with pytest.raises(tardis.CacheFull, match="cache"):
         tardis.extract_month(cfg, MONTH, opener=FakeOpener([]))
 
 
@@ -289,3 +289,55 @@ def test_snapshot_from_summaries_and_live_pair(tmp_path: Path) -> None:
     assert sleeps == [900.0] and meta["n_t0"] == 2 and "snap_t1.csv.gz" in meta["sha256"]
     with pytest.raises(ValueError):
         deribit.fetch_summary("SOL", opener=opener)
+
+
+class _ChunkedDrop(FakeResponse):
+    def read(self, n: int = -1) -> bytes:
+        import http.client
+
+        out = super().read(n)
+        if not out:
+            raise http.client.IncompleteRead(b"")
+        return out
+
+
+def test_dropped_connection_is_retried_not_invalid(tmp_path: Path) -> None:
+    # A Content-Length body cut short: http.client returns b"" and zlib sees no error.
+    cfg = _cfg(tmp_path, months=(MONTH,))
+    t0, t1 = cfg.times_us(MONTH)
+    data = _file(t0, t1)
+    cut = data[:400]
+    sleeps: list[float] = []
+    opener = FakeOpener([cut, cut, data])
+    meta = tardis.extract_month(cfg, MONTH, opener=opener, sleep=sleeps.append)
+    assert meta["status"] == "ok" and meta["attempt"] == 3 and sleeps == [60.0, 60.0]
+    # Three cut streams: status "error" (not "invalid"), so a later session retries the month.
+    cfg2 = _cfg(tmp_path / "b", months=(MONTH,))
+    meta2 = tardis.extract_month(cfg2, MONTH, opener=FakeOpener([cut] * 3), sleep=lambda s: None)
+    assert meta2["status"] == "error" and "TruncatedStream" in meta2["error"]
+    s = tardis.run_session(
+        cfg2, opener=FakeOpener([data]), log=lambda m: None, sleep=lambda x: None
+    )
+    assert s["requested"] == [{"month": MONTH, "status": "ok"}]
+
+
+def test_incomplete_read_is_retried(tmp_path: Path) -> None:
+    # A chunked body cut short raises http.client.IncompleteRead, which is not an OSError.
+    cfg = _cfg(tmp_path)
+    t0, t1 = cfg.times_us(MONTH)
+    data = _file(t0, t1)
+    responses = [_ChunkedDrop(data[:400]), FakeResponse(data)]
+
+    def opener(req: Any, timeout: float = 0) -> FakeResponse:
+        return responses.pop(0)
+
+    meta = tardis.extract_month(cfg, MONTH, opener=opener, sleep=lambda s: None)
+    assert meta["status"] == "ok" and meta["attempt"] == 2
+
+
+def test_cache_full_stops_session_cleanly(tmp_path: Path) -> None:
+    cfg = _cfg(tmp_path, cache_cap_gb=1e-9)
+    cfg.cache_dir.mkdir(parents=True)
+    (cfg.cache_dir / "junk.bin").write_bytes(b"x" * 10)
+    s = tardis.run_session(cfg, opener=FakeOpener([]), log=lambda m: None)
+    assert "cache" in s["stopped"] and s["requested"] == []
