@@ -77,7 +77,7 @@ uv run surfbench study report --config configs/study_quick.toml
 ```
 
 Full size: the same with `configs/study_full.toml` (91 months, 60-minute horizon; compute
-projected 6-15 minutes, download projected 15-30 GB over many quota windows). Watch
+about 30 minutes, download projected 15-30 GB over many quota windows). Watch
 `runs/<name>/progress.log` for stalls.
 
 ## Status and next steps
@@ -119,9 +119,10 @@ Done:
   recomputation tests pass.
 
 - M6 (synthetic part): `configs/study_synthetic.toml`, 24 dates x 2 underlyings from
-  arbitrage-free eSSVI/SVI/SABR truths, run in 128 s on 3 workers (492 s under load); results in
+  arbitrage-free eSSVI/SVI/SABR truths, run in 128 s on 3 workers (492 s under load; 134 s for the rerun after the eSSVI fix); results in
   `results/synthetic-v1/`; REPORT.md, README.md, CHANGELOG 0.1.0 (no tag). Measured real-data
-  compute: 21-25 s per unit on live Deribit pairs (written into the study config headers).
+  compute: 21-43 s (mean 29 s) per unit on live Deribit pairs (written into the study config
+  headers).
 - Calibrator check (`scripts/calibrator_check.py`, `results/calibrator-check/`): on 60 noisy
   synthetic slices our SVI and SABR fits are never worse than scipy differential evolution
   (largest relative objective gap 1.8e-9). A development rerun on 40 live slices (not
@@ -129,14 +130,25 @@ Done:
 - Filter freeze: `configs/filter_v1.toml` frozen on 2026-10-24, thresholds unchanged, after
   16 live snapshots (aggregate counts in REPORT.md section 4). The synthetic study was rerun
   with the frozen file (its SHA-256 changed with the status comment).
-- Tests: fast suite (139 passed, 3 skipped) and `--runslow` (142 passed) on Python 3.13; fast
-  suite passes on Python 3.11.
+- Review fixes (2026-10-24): `.gitignore` rules anchored (`/data/` had hidden
+  `src/surfbench/data/` from git and from the wheel; a hygiene test now checks this);
+  eSSVI calibration and `check_essvi_pair` use Mingone's sufficient calendar conditions
+  (the old ones were only necessary; DESIGN 13 item 14); `--force-new` always restarts;
+  snapshot changes raise a clean mismatch; synthetic months record and check their
+  generator inputs; `study report` refuses a stale run and drops dates removed from the
+  config; `--limit` counts unfinished units; a no-op resume keeps the run timing; Tardis
+  retries truncated streams and `http.client` errors and stops cleanly on a full cache
+  (DESIGN 13 item 15). Boundary tests kill one-line mutants of every constraint check.
+  The synthetic study was rerun: statistics unchanged to printed precision.
+- Tests: fast suite (162 passed, 3 skipped) on Python 3.13 and 3.11, `--runslow` (165
+  passed) on Python 3.13.
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
   around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC. The market-data
   quick study (M6 proper) has therefore not been run; no market-data result exists.
-- CI has never run on GitHub.
+- CI has never run on GitHub. A fresh clone of the repository must pass `uv run pytest`
+  before the first push (the missing `surfbench.data` package was found this way).
 
 Next (in order):
 1. After 2026-10-24 22:00 UTC: `uv run surfbench data tardis --config configs/study_quick.toml`

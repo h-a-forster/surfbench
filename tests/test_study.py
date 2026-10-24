@@ -169,3 +169,79 @@ def test_six_month_synthetic_study_all_models(tmp_path: Path) -> None:
             assert arb["cal_viol"][m]["violations"] == 0
             assert arb["price_viol_wide"][m]["violations"] == 0
     assert len(summary["pairwise_primary"]) == 20
+
+
+def _edit_config(path: Path, old: str, new: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    assert old in text
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def test_limit_makes_progress_over_repeated_runs(tmp_path: Path) -> None:
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    assert run_study(cfg_path, limit=1) == {"ok": 1, "error": 0, "skipped": 0}
+    assert run_study(cfg_path, limit=1) == {"ok": 1, "error": 0, "skipped": 0}
+    assert run_study(cfg_path, limit=1) == {"ok": 0, "error": 0, "skipped": 0}
+
+
+def test_changed_snapshot_refuses_then_force_new_recomputes(tmp_path: Path) -> None:
+    from surfbench.checkpoint import RunMismatchError
+
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    run_study(cfg_path)
+    meta_p = tmp_path / "cache" / "2024-01-01" / "meta.json"
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    meta["sha256"]["snap_t0.csv.gz"] = "0" * 64  # as if the snapshot had been re-extracted
+    meta_p.write_text(json.dumps(meta), encoding="utf-8")
+    with pytest.raises(RunMismatchError, match="snapshot"):
+        run_study(cfg_path)
+    assert main(["study", "run", "--config", str(cfg_path)]) == 2  # clean message
+    # --force-new now clears the finished units, so the advice in the message works.
+    counts = run_study(cfg_path, force_new=True)
+    assert counts["skipped"] == 0 and counts["ok"] + counts["error"] == 2
+
+
+def test_generator_change_regenerates_synthetic_snapshots(tmp_path: Path) -> None:
+    from surfbench.checkpoint import RunMismatchError
+
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    run_study(cfg_path)
+    meta_p = tmp_path / "cache" / "2024-01-01" / "meta.json"
+    old = json.loads(meta_p.read_text(encoding="utf-8"))
+    assert old["generator"]["truth"] == ["essvi"] and old["generator"]["seed"] == 7
+    _edit_config(cfg_path, 'truth = ["essvi"]', 'truth = ["sabr"]\nnoise = 0.05')
+    with pytest.raises(RunMismatchError, match="generator"):
+        run_study(cfg_path)
+    assert run_study(cfg_path, force_new=True)["ok"] == 2
+    new = json.loads(meta_p.read_text(encoding="utf-8"))
+    assert new["truth"] == "sabr" and new["generator"]["noise"] == 0.05
+    assert new["sha256"] != old["sha256"]
+    unit = json.loads((tmp_path / "run" / "units" / "2024-01-01_BTC.json").read_text("utf-8"))
+    assert unit["snapshot_sha256"] == new["sha256"]
+
+
+def test_report_refuses_stale_run_and_drops_removed_dates(tmp_path: Path) -> None:
+    from surfbench.checkpoint import RunMismatchError
+
+    cfg_path = _config(tmp_path, ["2024-01", "2024-02"], ["baseline"])
+    run_study(cfg_path)
+    # A month removed from the config: its units stay on disk but leave the report.
+    _edit_config(cfg_path, '["2024-01", "2024-02"]', '["2024-01"]')
+    summary = json.loads((write_report(cfg_path) / "summary.json").read_text(encoding="utf-8"))
+    assert {s["date"] for s in summary["snapshots"]} == {"2024-01-01"}
+    # A config change that the run did not see: the report is refused.
+    _edit_config(cfg_path, '"baseline"]', '"baseline", "ssvi"]')
+    with pytest.raises(RunMismatchError):
+        write_report(cfg_path)
+    assert main(["study", "report", "--config", str(cfg_path)]) == 2
+
+
+def test_noop_resume_keeps_run_timing(tmp_path: Path) -> None:
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    run_study(cfg_path)
+    info_p = tmp_path / "run" / "run_info.json"
+    first = json.loads(info_p.read_text(encoding="utf-8"))
+    assert run_study(cfg_path)["skipped"] == 2
+    again = json.loads(info_p.read_text(encoding="utf-8"))
+    assert again["last_run_wall_s"] == first["last_run_wall_s"]
+    assert again["total_run_wall_s"] == first["total_run_wall_s"]

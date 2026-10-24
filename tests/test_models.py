@@ -13,6 +13,7 @@ from surfbench.models.base import iv_objective
 from surfbench.models.essvi import (
     EssviModel,
     _psi_interval,
+    _psi_intervals,
     check_essvi_pair,
     check_essvi_slice,
     essvi_slice,
@@ -330,14 +331,21 @@ def test_essvi_fit_has_no_calendar_arbitrage_on_crossing_truth() -> None:
     assert all(accepted(s) for s in fit.status)
     s0, s1 = (tuple(s) for s in fit.params["slices"])
     assert check_essvi_pair(s0, s1)
-    assert s1[2] * s0[0] <= s0[2] * s1[0] * (1.0 + 1e-9)
     assert arbitrage.diagnose(fit, [k, k])["n_cal"] == 0
 
 
-def test_essvi_psi_interval_applies_sufficient_bound() -> None:
-    prev = (0.02, -0.1, 0.05)
-    iv_ = _psi_interval(-0.2, 0.0, 0.024, prev)
-    assert iv_ is not None
-    lo, hi = iv_
-    assert hi <= prev[2] * 0.024 / prev[0] + 1e-15
-    assert lo < hi
+def test_essvi_psi_intervals_respect_sufficient_conditions() -> None:
+    rng = np.random.default_rng(5)
+    n_beyond_linear = 0
+    for _ in range(300):
+        tp, rp, pp = rng.uniform(0.005, 0.2), rng.uniform(-0.8, 0.8), rng.uniform(0.02, 0.4)
+        prev = (tp, rp, pp)
+        rho, k_star = rng.uniform(-0.95, 0.95), rng.uniform(-0.05, 0.05)
+        theta_star = tp * rng.uniform(0.9, 2.0)
+        for lo, hi in _psi_intervals(rho, k_star, theta_star, prev):
+            for psi in np.linspace(lo, hi, 25):
+                cur = (theta_star - rho * psi * k_star, rho, float(psi))
+                assert check_essvi_pair(prev, cur), (prev, cur)
+                n_beyond_linear += psi * tp > pp * cur[0] * (1.0 + 1e-9)
+    assert n_beyond_linear > 0  # the quadratic branch is searched too
+    assert _psi_intervals(0.0, 0.0, 0.04, (0.05, 0.0, 0.1)) == []

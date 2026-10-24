@@ -10,9 +10,9 @@ the necessary conditions ``theta >= theta_p``, ``psi >= psi_p`` and
 ``|rho psi - rho_p psi_p| <= psi - psi_p``, plus one of the two sufficient branches
 ``psi / psi_p <= theta / theta_p`` or
 ``(rho_p - (psi / psi_p) rho)^2 <= (theta / theta_p - 1)(psi^2 theta_p / (psi_p^2 theta) - 1)``.
-The necessary conditions alone admit crossing slices. The fitter searches only the first
-(linear) branch, which keeps the feasible ``psi`` set an interval; ``check_essvi_pair``
-accepts either branch. Every accepted slice is checked to 1e-12.
+The necessary conditions alone admit crossing slices. For each ``rho`` the fitter searches
+the parts of the necessary ``psi`` interval where either branch holds. Every accepted slice
+is checked to 1e-12.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 import numpy as np
-from scipy.optimize import minimize_scalar
+from scipy.optimize import brentq, minimize_scalar
 
 from surfbench.models.base import FitInput, FittedSurface, Float, iv_residuals
 
@@ -33,6 +33,7 @@ _SHRINK = 1.0 - 1e-10
 RHO_GRID = np.linspace(-0.95, 0.95, 21)
 RHO_CLIP = 0.99
 PSI_MIN = 1e-10
+_N_SCAN = 33
 
 
 def essvi_slice(k: Float, theta: float, rho: float, psi: float) -> tuple[Float, Float, Float]:
@@ -111,13 +112,70 @@ def _psi_interval(
             lo = max(lo, gap / rk)
         elif gap < 0.0:
             return None
-        # Sufficient branch: psi theta_p <= psi_p theta, theta = theta* - rho k* psi.
-        den = tp + pp * rk
-        if den > 0.0:
-            hi = min(hi, pp * theta_star / den * _SHRINK)
     if not (hi > lo and hi > 0.0):
         return None
     return lo, hi
+
+
+def _sufficient_margin(
+    psi: float, rho: float, k_star: float, theta_star: float, prev: tuple[float, float, float]
+) -> float:
+    """``>= 0`` iff one of the two sufficient calendar branches holds (``theta`` anchored)."""
+    tp, rp, pp = prev
+    theta = theta_star - rho * psi * k_star
+    if theta <= 0.0:
+        return -math.inf
+    lin = (pp * theta - psi * tp) / (pp * tp)
+    q = psi / pp
+    quad = (theta / tp - 1.0) * (q * q * tp / theta - 1.0) - (rp - q * rho) ** 2
+    return max(lin, quad)
+
+
+def _psi_intervals(
+    rho: float, k_star: float, theta_star: float, prev: tuple[float, float, float] | None
+) -> list[tuple[float, float]]:
+    """Sub-intervals of the necessary ``psi`` interval where a sufficient branch holds.
+
+    The margin is sampled on ``_N_SCAN`` points; sign changes are refined with Brent's
+    method and each end is pulled inside by a relative ``1e-9``. A feasible island narrower
+    than the scan step can be missed, which only makes the fit more conservative.
+    """
+    iv_ = _psi_interval(rho, k_star, theta_star, prev)
+    if iv_ is None:
+        return []
+    if prev is None:
+        return [iv_]
+    lo, hi = iv_
+
+    def m(x: float) -> float:
+        return _sufficient_margin(x, rho, k_star, theta_star, prev)
+
+    grid = np.linspace(lo, hi, _N_SCAN)
+    vals = np.array([m(float(x)) for x in grid])
+    ok = vals >= 0.0
+    out: list[tuple[float, float]] = []
+    i = 0
+    while i < grid.size:
+        if not ok[i]:
+            i += 1
+            continue
+        j = i
+        while j + 1 < grid.size and ok[j + 1]:
+            j += 1
+        a = float(grid[i]) if i == 0 else brentq(m, float(grid[i - 1]), float(grid[i]), xtol=1e-15)
+        b = (
+            float(grid[j])
+            if j == grid.size - 1
+            else brentq(m, float(grid[j]), float(grid[j + 1]), xtol=1e-15)
+        )
+        width = b - a
+        a, b = a + 1e-9 * width, b - 1e-9 * width
+        if b > a and m(a) >= 0.0 and m(b) >= 0.0:
+            out.append((a, b))
+        elif width <= 0.0 and m(a) >= 0.0:
+            out.append((a, a))
+        i = j + 1
+    return out
 
 
 class EssviModel:
@@ -145,28 +203,31 @@ class EssviModel:
         prev: tuple[float, float, float] | None,
     ) -> tuple[float, float, float] | None:
         best: tuple[float, float, float] | None = None
+
+        def admissible(rho: float, psi: float) -> bool:
+            cur = (theta_star - rho * psi * k_star, rho, psi)
+            return check_essvi_slice(*cur) and (prev is None or check_essvi_pair(prev, cur))
+
         for rho in rhos:
             rho = float(rho)
-            iv_ = _psi_interval(rho, k_star, theta_star, prev)
-            if iv_ is None:
-                continue
-            lo, hi = iv_
-            if hi - lo < 1e-12:
-                psi, val = lo, loss(rho, lo)
-            else:
-                res = minimize_scalar(
-                    lambda p, rho=rho: loss(rho, p),
-                    bounds=(lo, hi),
-                    method="bounded",
-                    options={"xatol": 1e-10 * max(1.0, hi)},
-                )
-                psi, val = float(res.x), float(res.fun)
-                for edge in (lo, hi):  # bounded Brent never evaluates the end points
-                    ve = loss(rho, edge)
-                    if ve < val:
-                        psi, val = edge, ve
-            if math.isfinite(val) and (best is None or val < best[0]):
-                best = (val, rho, psi)
+            for lo, hi in _psi_intervals(rho, k_star, theta_star, prev):
+                cands: list[float] = [lo, hi]  # bounded Brent never evaluates the end points
+                if hi - lo >= 1e-12:
+                    res = minimize_scalar(
+                        lambda p, rho=rho: loss(rho, p),
+                        bounds=(lo, hi),
+                        method="bounded",
+                        options={"xatol": 1e-10 * max(1.0, hi)},
+                    )
+                    cands.insert(0, float(res.x))
+                for psi in cands:
+                    val = loss(rho, psi)
+                    if (
+                        math.isfinite(val)
+                        and (best is None or val < best[0])
+                        and admissible(rho, psi)
+                    ):
+                        best = (val, rho, psi)
         return best
 
     def _polish_rho(

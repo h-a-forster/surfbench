@@ -67,9 +67,10 @@ choices:
    month is the independent unit. Inference is on paired month-level differences.
 8. **Dependencies: numpy and scipy only** at runtime. No pandas, no parquet: snapshots are a
    few thousand rows and are stored as canonical gzip CSV with a SHA-256.
-9. **Wall-time budget.** Compute is small (projected 2-5 minutes for the quick study with 3
-   workers). The binding constraint is the Tardis free-download quota (section 5.1), so the
-   data step is resumable month by month across sessions and days.
+9. **Wall-time budget.** Compute is small (about 9 minutes for the quick study with 3
+   workers, measured; section 13 item 13). The binding constraint is the Tardis
+   free-download quota (section 5.1), so the data step is resumable month by month across
+   sessions and days.
 
 Explicitly deferred: MCS (via `arch`), plots, svi-py cross-implementation comparison as a
 study, SSVI joint theta refinement, Obloj's SABR correction, beta = 0.5, intraday snapshots,
@@ -248,8 +249,8 @@ w(k) = 1/2 ( theta + rho psi k + sqrt((psi k + theta rho)^2 + theta^2 (1 - rho^2
   These alone admit crossing slices (Mingone 2022, arXiv:2204.00312, section 2.1).
   Sufficient, together with them: `psi_j / psi_{j-1} <= theta_j / theta_{j-1}`, or
   `(rho_{j-1} - q rho_j)^2 <= (theta_j/theta_{j-1} - 1)(q^2 theta_{j-1}/theta_j - 1)` with
-  `q = psi_j / psi_{j-1}`. The calibration enforces the first (linear) branch; the check
-  `check_essvi_pair` accepts either. See section 13 item 14.
+  `q = psi_j / psi_{j-1}`. The calibration searches where either branch holds; see
+  section 13 item 14.
 
 Calibration (Corbetta, Cohort, Laachir, Martini 2019), slices in increasing `T`:
 
@@ -260,9 +261,10 @@ Calibration (Corbetta, Cohort, Laachir, Martini 2019), slices in increasing `T`:
    `psi_plus = -2 rho k*/(1+|rho|) + sqrt(4 rho^2 k*^2/(1+|rho|)^2 + 4 theta*/(1+|rho|))`,
    `theta > 0`, and for `j > 1`: `psi >= psi_minus(rho)` and `theta >= theta_{j-1}` (a
    half-line in `psi` through `psi_hat = (theta* - theta_{j-1}) / (rho k*)` whose direction
-   depends on the sign of `rho k*`; for `rho k* = 0` it requires `theta* >= theta_{j-1}`),
-   and `psi (theta_{j-1} + psi_{j-1} rho k*) <= psi_{j-1} theta*` (the linear sufficient
-   branch with `theta = theta* - rho psi k*`; an upper bound when the bracket is positive).
+   depends on the sign of `rho k*`; for `rho k* = 0` it requires `theta* >= theta_{j-1}`).
+   Within that interval only the parts where a sufficient branch holds (with
+   `theta = theta* - rho psi k*`) are kept: the margin is scanned on 33 points and sign
+   changes are refined with Brent's method. Each part is searched separately.
    Minimise `L` over the interval with bounded Brent (`minimize_scalar(method="bounded")`).
 3. Refine with 11 points of `rho` on `[rho_best - 0.1, rho_best + 0.1]`.
 4. If no `rho` is feasible (market ATM variance below the previous slice), replace
@@ -472,7 +474,7 @@ returned `ok` or `anchor_lifted`; failure counts are reported per model.
 | fits per unit | 5 models x 7 (5 folds, wing, full) | same |
 | stream per month | about 170 MB late 2026, less earlier (projection) | about 640 MB late 2026 |
 | download total | projected 2-3 GB | projected 15-30 GB |
-| compute | projected 2-5 min with 3 workers | projected 6-15 min with 3 workers |
+| compute | about 9 min with 3 workers (measured) | about 30 min with 3 workers (measured) |
 
 Projections are replaced by measurements at M5 (timing of 3 real units) and written into
 the config headers. Quick study: `uv run surfbench study run --config
@@ -724,11 +726,22 @@ Every deviation from sections 4-7, with its reason.
 14. **eSSVI calendar conditions (4.3.3).** Versions up to 0.1.0 enforced only the necessary
     conditions, which earlier text called sufficient. On noise-free quotes from the slices
     `(0.02, -0.1, 0.05)` and `(0.024, -0.6, 0.30)` at `T = (0.05, 0.06)` the fitter then
-    returned two accepted slices that cross (worst gap -4.8e-3). The calibration now also
-    imposes `psi_j theta_{j-1} <= psi_{j-1} theta_j`, which keeps the feasible `psi` set an
-    interval; the quadratic alternative branch is accepted by `check_essvi_pair` but not
-    searched, so the fit is slightly more conservative than necessary. On the 16 cached live
-    Deribit snapshots (32 fits, 288 adjacent pairs) no fitted pair was affected and fit
-    RMSE changed by under 1e-8 vol point; the committed synthetic results were rerun (see
-    REPORT.md).
+    returned two accepted slices that cross (worst gap -4.8e-3). The calibration now keeps
+    only the `psi` values where one of Mingone's two sufficient branches holds, found by a
+    33-point scan of the margin with Brent refinement (a feasible island narrower than the
+    scan step could be missed, which is conservative). Searching only the linear branch,
+    which would keep the set an interval, was tried and raised the synthetic eSSVI CV RMSE
+    by 0.02 to 0.10 vol point, so both branches are searched. With both, the synthetic study
+    and the fits on the 16 cached live Deribit snapshots (32 fits, 288 adjacent pairs) are
+    unchanged to about 1e-8 vol point.
 
+15. **Run provenance and resume (6.1-6.4, 5.1).** The run manifest now includes the
+    synthetic generator inputs (seed, truths, noise, spreads, strike count, times), and each
+    synthetic month's `meta.json` records them; a month made with other inputs is
+    regenerated. `--force-new` always deletes the finished units, and a changed snapshot
+    hash raises the same clean mismatch error as a changed manifest. `study report` refuses
+    to run when the stored manifest differs from the current configuration and reports
+    only the dates the configuration lists. `--limit N` counts only units that are not yet
+    final. In the Tardis extractor a stream that ends before the gzip trailer (a dropped
+    connection) and `http.client` protocol errors are retried as network errors instead of
+    marking the month invalid; a full cache stops the session with a message.

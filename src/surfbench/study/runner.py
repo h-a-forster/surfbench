@@ -26,7 +26,7 @@ import scipy
 
 from surfbench import __version__, synthetic
 from surfbench.arbitrage import ArbitrageConfig, diagnose
-from surfbench.checkpoint import UnitStore, atomic_write_json, run_units
+from surfbench.checkpoint import RunMismatchError, UnitStore, atomic_write_json, run_units
 from surfbench.metrics import (
     fold_ids,
     fold_offsets,
@@ -126,14 +126,45 @@ def _month_t0(month: str, t0: str) -> int:
     return int(datetime(y, m, 1, hh, mm, ss, tzinfo=UTC).timestamp()) * 1_000_000
 
 
+SYN_GENERATOR_KEYS = (
+    "truth",
+    "truth_arbitrage_free",
+    "noise",
+    "spread",
+    "spread_wing",
+    "n_strikes",
+    "t0",
+    "horizon_min",
+)
+
+
+def synthetic_generator(cfg: StudyConfig, underlyings: tuple[str, ...]) -> dict[str, Any]:
+    """Every configurable input of the synthetic snapshot generator."""
+    d = cfg.raw["data"]
+    return {
+        "seed": cfg.seed,
+        "underlyings": list(underlyings),
+        **{k: d.get(k) for k in SYN_GENERATOR_KEYS},
+    }
+
+
 def ensure_synthetic(cfg: StudyConfig, underlyings: tuple[str, ...]) -> None:
-    """Generate missing synthetic months (deterministic in the study seed and month)."""
+    """Generate synthetic months that are missing or were made with other generator inputs.
+
+    Deterministic in the study seed and month. A month whose ``meta.json`` records other
+    generator inputs (or none) is regenerated; finished units on it are then caught by the
+    snapshot hash check in :func:`run_study`.
+    """
     d = cfg.raw["data"]
     truths = tuple(d.get("truth", ["essvi"]))
+    generator = json.loads(json.dumps(synthetic_generator(cfg, underlyings)))
     for i, month in enumerate(sorted(d["months"])):
         out = cfg.cache_dir / f"{month}-01"
-        if (out / "meta.json").exists():
-            continue
+        meta_p = out / "meta.json"
+        if meta_p.exists():
+            old = json.loads(meta_p.read_text(encoding="utf-8"))
+            if old.get("generator") == generator:
+                continue
         t0 = _month_t0(month, str(d.get("t0", "00:01:00")))
         t1 = t0 + int(round(float(d["horizon_min"]) * 60e6))
         seed = int(hashlib.sha256(f"{cfg.seed}:{month}".encode()).hexdigest()[:8], 16)
@@ -186,6 +217,7 @@ def ensure_synthetic(cfg: StudyConfig, underlyings: tuple[str, ...]) -> None:
             "month": month,
             "source": "synthetic",
             "truth": family,
+            "generator": generator,
             "status": "ok",
             "t0_us": t0,
             "t1_us": t1,
@@ -446,7 +478,33 @@ def _manifest(cfg: StudyConfig) -> dict[str, Any]:
         "arbitrage": cfg.raw.get("arbitrage", {}),
         "horizon_min": cfg.raw["data"].get("horizon_min"),
         "t0": cfg.raw["data"].get("t0"),
+        "generator": (
+            synthetic_generator(cfg, filt.underlyings) if cfg.source == "synthetic" else None
+        ),
     }
+
+
+def expected_unit_ids(cfg: StudyConfig) -> set[str] | None:
+    """Unit ids the configuration covers (``None`` for the deribit source: every pair)."""
+    if cfg.source == "deribit":
+        return None
+    filt = FilterConfig.load(cfg.filter_path)
+    return {f"{m}-01_{u}" for m in cfg.raw["data"]["months"] for u in filt.underlyings}
+
+
+def check_run_matches(cfg: StudyConfig) -> None:
+    """Raise :class:`RunMismatchError` unless the run directory was made by this config."""
+    path = cfg.out_dir / "manifest.json"
+    if not path.exists():
+        raise RunMismatchError(f"no run found for study {cfg.name!r}; run `study run` first")
+    stored = json.loads(path.read_text(encoding="utf-8"))
+    current = json.loads(json.dumps(_manifest(cfg), sort_keys=True))
+    if stored != current:
+        diff = sorted(k for k in set(stored) | set(current) if stored.get(k) != current.get(k))
+        raise RunMismatchError(
+            "the run directory was produced with a different configuration "
+            f"(changed: {', '.join(diff)}); rerun `study run --force-new` before reporting"
+        )
 
 
 def run_study(
@@ -469,21 +527,36 @@ def run_study(
             old = rec.get("snapshot_sha256", {})
             new = task.get("sha256", {})
             if new and old and old != new:
-                raise RuntimeError(f"snapshot of {uid} changed since it was run; use --force-new")
+                raise RunMismatchError(
+                    f"snapshot of {uid} changed since it was run; use --force-new"
+                )
     if limit is not None:
-        units = units[: max(0, int(limit))]
+        pending = [(uid, task) for uid, task in units if not store.is_final(uid)]
+        units = pending[: max(0, int(limit))]
     n_workers = int(workers if workers is not None else cfg.raw["study"].get("workers", 1))
     store.log("-", "start", 0.0, f"{len(units)} units, {len(missing)} dates missing")
     t = time.perf_counter()
     counts = run_units(store, units, run_unit, workers=n_workers)
-    store.log("-", "end", time.perf_counter() - t, json.dumps(counts))
+    elapsed = time.perf_counter() - t
+    store.log("-", "end", elapsed, json.dumps(counts))
+    # A resume that runs nothing (e.g. the second pass of a retry loop) keeps the timing of
+    # the last pass that did run units.
+    info_p = cfg.out_dir / "run_info.json"
+    prev = {}
+    if info_p.exists() and not force_new:
+        prev = json.loads(info_p.read_text(encoding="utf-8"))
+    ran = counts.get("ok", 0) + counts.get("error", 0) > 0
     atomic_write_json(
-        cfg.out_dir / "run_info.json",
+        info_p,
         {
             "missing": missing,
             "n_units": len(units),
-            "last_run_wall_s": time.perf_counter() - t,
-            "workers": min(max(n_workers, 1), 3),
+            "last_run_wall_s": elapsed if ran else prev.get("last_run_wall_s", elapsed),
+            "total_run_wall_s": float(prev.get("total_run_wall_s", 0.0))
+            + (elapsed if ran else 0.0),
+            "workers": min(max(n_workers, 1), 3)
+            if ran
+            else prev.get("workers", min(max(n_workers, 1), 3)),
             "python": platform.python_version(),
             "numpy": np.__version__,
             "scipy": scipy.__version__,

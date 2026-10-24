@@ -21,7 +21,7 @@ statement in this report is about Deribit data. Generated tables:
 | quotes used | BTC 5,023 and ETH 4,980 `t0` quotes in 216 slices each; every model fit every slice in every fold (0 failed slice fits) |
 | inference | 10,000 date-bootstrap resamples, 100,000 sign flips, Holm over 20 tests, seed 20261023 |
 | software | surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1 |
-| wall time | 128 s with 3 workers on an otherwise idle machine (358 s of unit compute; mean time per unit and model for its 7 fits: SVI 3.3 s, SABR 1.7 s, eSSVI 1.3 s, SSVI 1.0 s, baseline 0.004 s). The run with the draft filter file (identical thresholds) took 492 s while other jobs shared the CPU and gave identical statistics. |
+| wall time | 128 s with 3 workers on an otherwise idle machine (358 s of unit compute; mean time per unit and model for its 7 fits: SVI 3.3 s, SABR 1.7 s, eSSVI 1.3 s, SSVI 1.0 s, baseline 0.004 s). The run with the draft filter file (identical thresholds) took 492 s while other jobs shared the CPU and gave identical statistics; the rerun after the eSSVI calendar fix (section 2) took 134 s (371 s of unit compute) and agrees to the printed precision. |
 
 The synthetic study validates the machinery; it is not evidence about markets. It shows that
 (a) every model recovers its own family to the noise floor through the whole quote pipeline,
@@ -65,10 +65,13 @@ Checks of the machinery:
   The baseline fails the price check (call prices rising with strike far in the wings) in
   over half of its slices although its Durrleman `g` is non-negative in about 97% of them.
   This is why the price cross-check has its own column.
-- **Next snapshot.** The `t0` fits price `t1` quotes with RMSE 0.89 (SVI) to 1.03 (eSSVI)
-  vol points, against 1.03 for quote persistence. With fresh noise at `t1` and a 1% level
-  shift, persistence carries the noise of both snapshots, so the models' small edge is the
-  expected smoothing effect, not forecasting skill.
+- **Next snapshot.** Against quote persistence (1.03 vol points on BTC, 1.05 on ETH), the
+  `t0` fits price `t1` quotes with RMSE 0.89 and 0.91 for raw SVI, 1.03 and 1.00 for SABR
+  and 1.03 and 1.01 for eSSVI, so SVI is below persistence and SABR and eSSVI are level with
+  it; all these intervals overlap, and no model-against-persistence test was run. SSVI
+  (1.96, 1.81) and the baseline (1.55, 1.54) are clearly worse. With fresh noise at `t1`
+  and a 1% level shift, persistence carries the noise of both snapshots, so any edge of the
+  flexible fits is the expected smoothing effect, not forecasting skill.
 - **Intervals.** Moving-block (3-month) intervals on the primary metric are close to the
   i.i.d. ones (SVI BTC 0.573 to 0.598 against 0.571 to 0.600).
 - **Calm/stress split.** The synthetic stress label (top quartile of 30-day ATM IV) has no
@@ -80,6 +83,15 @@ and the arbitrage-free models paid for it (eSSVI CV errors up to 28 vol points o
 dates). That comparison measured the truth's arbitrage rather than the models, so the
 generator now draws smooth, arbitrage-free truths (DESIGN section 13, item 5). The run
 reported here is the only one with the current generator.
+
+eSSVI calendar fix. Version 0.1.0 of the eSSVI calibration enforced only necessary calendar
+conditions, so it could in principle accept crossing slices (DESIGN section 13, item 14).
+After the fix (Mingone's sufficient conditions, both branches searched) the study was rerun
+from scratch on the same snapshots: every statistic above is unchanged to the printed
+precision (largest change about 1e-9 vol point), and no eSSVI fit on the 16 cached live
+Deribit snapshots changed either. A first version of the fix that searched only the linear
+branch was more conservative and raised eSSVI's CV RMSE by 0.02 to 0.10 vol point; it was
+not kept.
 
 ## 3. The market-data study (not run)
 
@@ -139,8 +151,8 @@ summaries, so that rule is applied to Tardis data only), and 2026 market structu
   ended above the objective found by scipy's differential evolution (largest relative gap
   1.8e-9; `results/calibrator-check/`), so they do not get stuck in visibly worse local
   minima there. A development run on live Deribit slices (not committed, under the data
-  policy) gave the same picture. eSSVI and SSVI were not part of that check, real smiles may be harder, and
-  the optional svi-py oracle comparison was not run.
+  policy) gave the same picture. eSSVI and SSVI were not part of that check, real smiles
+  may be harder, and the optional svi-py oracle comparison was not run.
 - **Next-snapshot horizon.** 15 minutes measures stability, not forecasting skill.
 - **Multiple testing** covers only the 20 primary comparisons; every other number is a
   secondary, unadjusted estimate.

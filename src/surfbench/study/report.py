@@ -29,7 +29,12 @@ from surfbench.stats import (
     rank_probabilities,
     sign_flip_test,
 )
-from surfbench.study.runner import StudyConfig, load_study
+from surfbench.study.runner import (
+    StudyConfig,
+    check_run_matches,
+    expected_unit_ids,
+    load_study,
+)
 
 __all__ = ["ACCURACY_METRICS", "build_summary", "render_leaderboard", "write_report"]
 
@@ -59,10 +64,10 @@ def _finite(x: float) -> float | None:
     return float(x) if math.isfinite(x) else None
 
 
-def _ok_units(store: UnitStore) -> list[dict[str, Any]]:
+def _ok_units(all_units: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     units = [
         u
-        for u in store.load_all().values()
+        for u in all_units.values()
         if u.get("status") == "ok" and not u.get("empty") and u.get("models")
     ]
     return sorted(units, key=lambda u: (u["date"], u["underlying"]))
@@ -118,7 +123,10 @@ def build_summary(cfg: StudyConfig) -> dict[str, Any]:
     models = list(cfg.raw["fit"]["models"])
     store = UnitStore(cfg.out_dir)
     all_units = store.load_all()
-    units = _ok_units(store)
+    wanted = expected_unit_ids(cfg)
+    if wanted is not None:  # units of dates no longer in the config are left out
+        all_units = {k: u for k, u in all_units.items() if k in wanted}
+    units = _ok_units(all_units)
     run_info_p = cfg.out_dir / "run_info.json"
     run_info = json.loads(run_info_p.read_text(encoding="utf-8")) if run_info_p.exists() else {}
     filt = FilterConfig.load(cfg.filter_path)
@@ -427,6 +435,7 @@ def render_leaderboard(summary: dict[str, Any]) -> str:
 
 def write_report(config: Path, root: Path | None = None) -> Path:
     cfg = load_study(config, root)
+    check_run_matches(cfg)
     summary = build_summary(cfg)
     out = cfg.results_dir
     atomic_write_json(out / "summary.json", summary)

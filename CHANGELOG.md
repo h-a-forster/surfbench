@@ -6,6 +6,27 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Packaging: the `surfbench.data` package (Tardis extractor, Deribit adapter) was excluded
+  from git and from built distributions by an unanchored `data/` ignore rule; the rules are
+  now anchored to the repository root and a test checks that no package module is ignored.
+- eSSVI: the calendar conditions enforced so far were necessary but not sufficient, so the
+  fitter could accept crossing slices. The calibration and `check_essvi_pair` now use
+  Mingone's (2022) sufficient conditions (both branches). Synthetic results unchanged.
+- Study runner: `--force-new` now always restarts; snapshot changes raise a clean mismatch
+  error; synthetic snapshots are regenerated when generator inputs change (recorded in
+  `meta.json` and the run manifest); `--limit` counts only unfinished units.
+- Report: refuses a run directory produced with a different configuration and leaves out
+  dates no longer in the configuration.
+- Tardis: dropped connections (truncated gzip, `IncompleteRead`) are retried instead of
+  marking the month invalid; a full cache stops the session cleanly.
+
+### Added
+
+- Boundary tests for the SVI, SSVI and eSSVI constraint checks, the calendar and
+  price-monotonicity diagnostics and the mid-IV computation.
+
 ## [0.1.0] - 2026-10-24
 
 First version with the full pipeline. The market-data quick study has not been run yet: the
@@ -23,7 +44,7 @@ Tardis.dev free download quota was locked during development (see REPORT.md).
 - Models behind one objective (half-spread-weighted IV least squares): quadratic baseline,
   raw SVI (quasi-explicit calibration with a least-squares polish, Lee's bound imposed),
   SSVI with power-law curvature (global), eSSVI (Corbetta et al. robust slice-by-slice
-  calibration under the Hendriks-Martini calendar conditions), SABR (Hagan lognormal,
+  calibration under the Hendriks-Martini calendar conditions, necessary only; see Unreleased), SABR (Hagan lognormal,
   `beta = 1`).
 - `arbitrage`: Durrleman's `g` on wide and in-range grids, call-price monotonicity and
   convexity cross-check, calendar gaps between adjacent expiries, slope bound.

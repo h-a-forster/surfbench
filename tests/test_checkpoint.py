@@ -97,3 +97,13 @@ def test_scrub_paths() -> None:
     s = checkpoint.scrub_paths("open C:\\Users\\me\\proj\\x.csv.gz failed; /home/me/a/b.txt")
     assert s == "open <path>/x.csv.gz failed; <path>/b.txt"
     assert checkpoint.scrub_paths("ratio 1/2 and 3/4") == "ratio 1/2 and 3/4"
+
+
+def test_force_new_resets_even_when_manifest_is_unchanged(tmp_path: Path) -> None:
+    store = UnitStore(tmp_path / "run")
+    store.open({"config": "a"})
+    run_units(store, [("u0", 0)], _square)
+    assert store.read("u0") is not None
+    UnitStore(tmp_path / "run").open({"config": "a"}, force_new=True)
+    assert UnitStore(tmp_path / "run").read("u0") is None
+    assert "--force-new" in (tmp_path / "run" / "progress.log").read_text(encoding="utf-8")

@@ -101,25 +101,24 @@ class UnitStore:
         """Create the run directory or check that it belongs to the same configuration.
 
         ``manifest`` must be JSON-serialisable. Resuming is refused when any key differs
-        from the stored manifest, unless ``force_new`` is set, in which case finished units
-        are deleted and the run starts over.
+        from the stored manifest. With ``force_new`` the finished units are always deleted
+        and the run starts over, whether or not the manifest changed (an input outside the
+        manifest, such as a snapshot file, may have changed).
         """
         current = json.loads(json.dumps(dict(manifest), sort_keys=True))
-        if self.manifest_path.exists():
+        if self.manifest_path.exists() and not force_new:
             stored = json.loads(self.manifest_path.read_text(encoding="utf-8"))
             if stored != current:
-                if not force_new:
-                    diff = sorted(
-                        key
-                        for key in set(stored) | set(current)
-                        if stored.get(key) != current.get(key)
-                    )
-                    raise RunMismatchError(
-                        "run directory was created with a different configuration "
-                        f"(changed: {', '.join(diff)}); use --force-new to start over"
-                    )
-                shutil.rmtree(self.units_dir, ignore_errors=True)
-                self.log("-", "reset", 0.0, "manifest changed; started over")
+                diff = sorted(
+                    key for key in set(stored) | set(current) if stored.get(key) != current.get(key)
+                )
+                raise RunMismatchError(
+                    "run directory was created with a different configuration "
+                    f"(changed: {', '.join(diff)}); use --force-new to start over"
+                )
+        if force_new and (self.manifest_path.exists() or self.units_dir.exists()):
+            shutil.rmtree(self.units_dir, ignore_errors=True)
+            self.log("-", "reset", 0.0, "--force-new: finished units deleted; started over")
         self.units_dir.mkdir(parents=True, exist_ok=True)
         atomic_write_json(self.manifest_path, current)
 
