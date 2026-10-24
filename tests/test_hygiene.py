@@ -67,3 +67,25 @@ def test_no_local_paths_in_committed_text() -> None:
         text = p.read_text(encoding="utf-8", errors="replace")
         for pat in PATH_PATTERNS:
             assert not pat.search(text), (p.name, pat.pattern)
+
+
+def test_every_package_module_is_tracked_by_git() -> None:
+    """A broad ignore rule once hid src/surfbench/data/ from git and from the wheel."""
+    import shutil
+    import subprocess
+
+    import pytest
+
+    git = shutil.which("git")
+    if git is None or not (ROOT / ".git").exists():
+        pytest.skip("not a git checkout")
+    pkg = ROOT / "src" / "surfbench"
+    modules = sorted(p.relative_to(ROOT).as_posix() for p in pkg.rglob("*.py"))
+    ignored = subprocess.run(
+        [git, "check-ignore", "--no-index", *modules],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.split()
+    assert ignored == [], f"package modules matched by .gitignore: {ignored}"

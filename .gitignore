@@ -13,7 +13,7 @@ tmp/
 
 # Market data and run outputs are never committed (licence terms: see docs/DESIGN.md section 3).
 # Only aggregate error statistics go in results/.
-data/
-cache/
-runs/
+/data/
+/cache/
+/runs/
 *.csv.gz
