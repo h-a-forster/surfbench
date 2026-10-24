@@ -41,7 +41,7 @@ together (searched 2026-10-23; see `docs/DESIGN.md` section 12).
 | quadratic baseline | per expiry | `sigma(k) = c0 + c1 k + c2 k^2` | no |
 | raw SVI (Gatheral 2004), quasi-explicit calibration (Zeliade 2009) | per expiry | `a, b, rho, m, sigma` | no (Lee's bound imposed) |
 | SSVI, power-law curvature (Gatheral-Jacquier 2014) | global | `rho, eta, gamma` + ATM variance per expiry | yes |
-| eSSVI (Hendriks-Martini 2019), robust calibration (Corbetta et al. 2019) | slice by slice | `theta, rho, psi` per expiry | yes (sufficient conditions) |
+| eSSVI (Hendriks-Martini 2019), robust calibration (Corbetta et al. 2019) | slice by slice | `theta, rho, psi` per expiry | yes (Mingone's sufficient conditions) |
 | SABR, Hagan et al. (2002) lognormal, `beta = 1` | per expiry | `alpha, rho, nu` | no |
 
 All models minimise `sum ((sigma_model - sigma_mid) / max(half_spread, 0.5 vol pt))^2` on the

@@ -191,3 +191,27 @@ def test_fifty_noisy_fits_ssvi_essvi_clean() -> None:
         for name in ("ssvi", "essvi"):
             diag = arbitrage.diagnose(get_model(name).fit(snap.data), snap.data.k)
             assert diag["n_bfly_wide"] == diag["n_cal"] == diag["n_price_wide"] == 0, (name, i)
+
+
+def test_calendar_pair_flags_a_tiny_crossing() -> None:
+    base = [0.01, 0.1, -0.3, 0.0, 0.2]
+    below = [base[0] - 1e-6, *base[1:]]
+    above = [base[0] + 1e-6, *base[1:]]
+    flag, worst = arbitrage.calendar_pair(SviModel.surface((0.1, 0.2), [base, below]), 0, 1)
+    assert flag and worst == pytest.approx(-1e-6, rel=1e-6)
+    flag, worst = arbitrage.calendar_pair(SviModel.surface((0.1, 0.2), [base, above]), 0, 1)
+    assert not flag and worst == pytest.approx(1e-6, rel=1e-6)
+
+
+def test_price_check_flags_monotonicity_without_convexity_failure() -> None:
+    # A quadratic-in-k volatility grows so fast that call prices rise again far right of the
+    # money: the first difference turns positive while second differences stay >= 0 and
+    # Durrleman's g stays non-negative on the wide grid.
+    surf = get_model("baseline").surface((0.1,), [[0.5, 0.0, 2.0]])
+    kq = np.array([-0.1, 0.1])
+    cfg = arbitrage.DEFAULT_CONFIG
+    theta = float(surf.w(0, np.array([0.0]))[0])
+    first, second = arbitrage.price_second_differences(surf, 0, arbitrage.wide_grid(theta, cfg, kq))
+    assert first.max() > cfg.price_tol and second.min() >= -cfg.price_tol
+    rec = arbitrage.butterfly_slice(surf, 0, kq)
+    assert rec.price_violated_wide and not rec.violated_wide

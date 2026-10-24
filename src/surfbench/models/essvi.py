@@ -5,8 +5,14 @@ Specification: ``docs/DESIGN.md`` section 4.3.3.
 Slice ``j`` in ``(theta, rho, psi)`` form (``psi = theta phi``):
 ``w(k) = 1/2 (theta + rho psi k + sqrt((psi k + theta rho)^2 + theta^2 (1 - rho^2)))``.
 Butterfly (sufficient): ``psi (1 + |rho|) < 4`` and ``psi <= 2 sqrt(theta / (1 + |rho|))``.
-Calendar with the previous accepted slice: ``theta >= theta_p``, ``psi >= psi_p`` and
-``|rho psi - rho_p psi_p| <= psi - psi_p``. Every accepted slice is checked to 1e-12.
+Calendar with the previous accepted slice (Mingone 2022, arXiv:2204.00312, section 2.1):
+the necessary conditions ``theta >= theta_p``, ``psi >= psi_p`` and
+``|rho psi - rho_p psi_p| <= psi - psi_p``, plus one of the two sufficient branches
+``psi / psi_p <= theta / theta_p`` or
+``(rho_p - (psi / psi_p) rho)^2 <= (theta / theta_p - 1)(psi^2 theta_p / (psi_p^2 theta) - 1)``.
+The necessary conditions alone admit crossing slices. The fitter searches only the first
+(linear) branch, which keeps the feasible ``psi`` set an interval; ``check_essvi_pair``
+accepts either branch. Every accepted slice is checked to 1e-12.
 """
 
 from __future__ import annotations
@@ -51,9 +57,16 @@ def check_essvi_slice(theta: float, rho: float, psi: float) -> bool:
 
 
 def check_essvi_pair(prev: tuple[float, float, float], cur: tuple[float, float, float]) -> bool:
+    """No calendar arbitrage between two eSSVI slices (necessary and sufficient conditions)."""
     tp, rp, pp = prev
     t, r, p = cur
-    return t >= tp - _TOL and p >= pp - _TOL and abs(r * p - rp * pp) <= p - pp + _TOL
+    necessary = t >= tp - _TOL and p >= pp - _TOL and abs(r * p - rp * pp) <= p - pp + _TOL
+    if not necessary:
+        return False
+    if p * tp <= pp * t * (1.0 + _TOL) + _TOL:
+        return True
+    q = p / pp
+    return (rp - q * r) ** 2 <= (t / tp - 1.0) * (q * q * tp / t - 1.0) + _TOL
 
 
 @dataclass
@@ -98,6 +111,10 @@ def _psi_interval(
             lo = max(lo, gap / rk)
         elif gap < 0.0:
             return None
+        # Sufficient branch: psi theta_p <= psi_p theta, theta = theta* - rho k* psi.
+        den = tp + pp * rk
+        if den > 0.0:
+            hi = min(hi, pp * theta_star / den * _SHRINK)
     if not (hi > lo and hi > 0.0):
         return None
     return lo, hi

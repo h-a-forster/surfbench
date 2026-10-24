@@ -221,3 +221,123 @@ def test_baseline_clipping_counted() -> None:
     k = np.array([-1.0, 0.0, 1.0])
     assert surf.n_clipped(0, k) == 2
     assert np.all(surf.iv(0, k) > 0)
+
+
+# --- Constraint checks near their boundaries (each test kills a one-line mutant). ---
+
+
+def test_svi_constraints_reject_just_outside_bounds() -> None:
+    # Lee bound b (1 + |rho|) <= 2.
+    assert svi_constraints_ok(0.01, 2.0 / 1.5 - 1e-9, 0.5, 0.0, 0.1)
+    assert not svi_constraints_ok(0.01, 2.0 / 1.5 + 1e-6, 0.5, 0.0, 0.1)
+    # Minimum total variance a + b sigma sqrt(1 - rho^2) >= 0.
+    b, rho, sig = 0.5, 0.3, 0.2
+    floor = b * sig * math.sqrt(1.0 - rho * rho)
+    assert svi_constraints_ok(-floor + 1e-9, b, rho, 0.0, sig)
+    assert not svi_constraints_ok(-floor - 1e-6, b, rho, 0.0, sig)
+
+
+def test_svi_fit_respects_lee_bound_on_steep_data() -> None:
+    # Data from an SVI slice with b (1 + |rho|) = 3 (wings too steep): the fit must stay at
+    # or below 2, checked here independently of svi_constraints_ok.
+    k = np.linspace(-1.5, 1.5, 41)
+    T = 0.25
+    w = svi_raw(k, 0.01, 2.0, 0.5, 0.0, 0.2)[0]
+    data = FitInput((T,), (k,), (np.sqrt(w / T),), (np.full(k.size, 0.005),))
+    fit = SviModel().fit(data)
+    assert accepted(fit.status[0])
+    _, b, rho, _, _ = fit.params["slices"][0]
+    assert b * (1.0 + abs(rho)) <= 2.0 + 1e-9
+
+
+def test_ssvi_gamma_bound_enforced() -> None:
+    with pytest.raises(AssertionError):
+        check_ssvi(np.array([0.01, 0.02]), -0.3, 0.5, 0.6)
+    # Data from a power-law SSVI with gamma = 0.9: the fitted gamma stays in (0, 1/2].
+    T = (0.05, 0.25, 1.0, 2.0)
+    theta = np.array([0.004, 0.02, 0.08, 0.16])
+    k = np.linspace(-0.6, 0.6, 25)
+    ivs = []
+    for t, th in zip(T, theta, strict=True):
+        phi = float(phi_power(th, 0.4, 0.9))
+        ivs.append(np.sqrt(essvi_slice(k, th, -0.3, th * phi)[0] / t))
+    data = FitInput(T, (k,) * 4, tuple(ivs), (np.full(k.size, 0.005),) * 4)
+    fit = SsviModel().fit(data)
+    assert 0.0 < fit.params["gamma"] <= 0.5 + 1e-12
+
+
+def test_ssvi_theta_is_monotone_when_market_atm_variance_falls() -> None:
+    k = np.linspace(-0.3, 0.3, 13)
+    T = (0.1, 0.2, 0.3)
+    atm_w = (0.010, 0.009, 0.020)  # the second expiry's ATM total variance is lower
+    ivs = tuple(np.sqrt(w / t) + 0.1 * k**2 for w, t in zip(atm_w, T, strict=True))
+    data = FitInput(T, (k,) * 3, ivs, (np.full(k.size, 0.005),) * 3)
+    fit = SsviModel().fit(data)
+    theta = np.asarray(fit.params["theta"])
+    assert np.all(np.diff(theta) >= 0.0)
+    assert theta[1] == pytest.approx(theta[0])
+
+
+def test_essvi_slice_check_rejects_large_psi() -> None:
+    # psi (1 + |rho|) < 4 holds but psi > 2 sqrt(theta / (1 + |rho|)).
+    assert check_essvi_slice(0.04, 0.0, 0.4)
+    assert not check_essvi_slice(0.04, 0.0, 0.41)
+
+
+def test_essvi_pair_check_uses_absolute_value() -> None:
+    # rho psi - rho_p psi_p = -0.30 is below psi - psi_p = 0.1, but its absolute value is not.
+    assert not check_essvi_pair((0.02, 0.6, 0.2), (0.05, -0.6, 0.3))
+    assert not check_essvi_pair((0.02, -0.4, 0.2), (0.05, 0.6, 0.3))
+    assert check_essvi_pair((0.02, -0.4, 0.2), (0.05, -0.3, 0.3))
+
+
+def test_essvi_pair_necessary_conditions_are_not_sufficient() -> None:
+    # Passes theta/psi monotonicity and the |rho psi| condition, yet the slices cross.
+    prev, cur = (0.9948, 0.2349, 0.2140), (1.2498, 0.7798, 0.8027)
+    assert check_essvi_slice(*prev) and check_essvi_slice(*cur)
+    kk = np.linspace(-6.0, 6.0, 4001)
+    assert (essvi_slice(kk, *cur)[0] - essvi_slice(kk, *prev)[0]).min() < -0.4
+    assert not check_essvi_pair(prev, cur)
+
+
+def test_essvi_pair_sufficient_check_never_admits_crossing_slices() -> None:
+    rng = np.random.default_rng(11)
+    kk = np.linspace(-6.0, 6.0, 2001)
+    n_ok = n_quadratic = 0
+    for _ in range(4000):
+        t1, r1, p1 = rng.uniform(0.01, 1.5), rng.uniform(-0.95, 0.95), rng.uniform(0.01, 1.0)
+        t2, r2, p2 = t1 * rng.uniform(1, 2), rng.uniform(-0.95, 0.95), p1 * rng.uniform(1, 3)
+        if not check_essvi_pair((t1, r1, p1), (t2, r2, p2)):
+            continue
+        n_ok += 1
+        n_quadratic += p2 * t1 > p1 * t2
+        gap = essvi_slice(kk, t2, r2, p2)[0] - essvi_slice(kk, t1, r1, p1)[0]
+        assert gap.min() >= -1e-12, ((t1, r1, p1), (t2, r2, p2))
+    assert n_ok > 500 and n_quadratic > 20  # both sufficient branches exercised
+
+
+def test_essvi_fit_has_no_calendar_arbitrage_on_crossing_truth() -> None:
+    # Noise-free quotes from two slices that satisfy only the necessary conditions. Before the
+    # sufficient branch was enforced, the fitter accepted crossing slices here.
+    from surfbench import arbitrage
+
+    T = (0.05, 0.06)
+    truth = ((0.02, -0.1, 0.05), (0.024, -0.6, 0.30))
+    k = np.linspace(-0.5, 0.5, 21)
+    ivs = tuple(np.sqrt(essvi_slice(k, *s)[0] / t) for s, t in zip(truth, T, strict=True))
+    data = FitInput(T, (k, k), ivs, (np.full(k.size, 0.005),) * 2)
+    fit = EssviModel().fit(data)
+    assert all(accepted(s) for s in fit.status)
+    s0, s1 = (tuple(s) for s in fit.params["slices"])
+    assert check_essvi_pair(s0, s1)
+    assert s1[2] * s0[0] <= s0[2] * s1[0] * (1.0 + 1e-9)
+    assert arbitrage.diagnose(fit, [k, k])["n_cal"] == 0
+
+
+def test_essvi_psi_interval_applies_sufficient_bound() -> None:
+    prev = (0.02, -0.1, 0.05)
+    iv_ = _psi_interval(-0.2, 0.0, 0.024, prev)
+    assert iv_ is not None
+    lo, hi = iv_
+    assert hi <= prev[2] * 0.024 / prev[0] + 1e-15
+    assert lo < hi

@@ -241,10 +241,15 @@ w(k) = 1/2 ( theta + rho psi k + sqrt((psi k + theta rho)^2 + theta^2 (1 - rho^2
 
 - Butterfly (Gatheral-Jacquier Theorem 4.2 in `psi` form, sufficient):
   `psi (1 + |rho|) < 4` and `psi <= 2 sqrt(theta / (1 + |rho|))`.
-- Calendar between slices `j-1 < j` (Hendriks-Martini sufficient conditions as used by
+- Calendar between slices `j-1 < j`. Necessary conditions (Hendriks-Martini, as used by
   Corbetta et al. 2019): `theta_j >= theta_{j-1}`, `psi_j >= psi_{j-1}`, and
   `|rho_j psi_j - rho_{j-1} psi_{j-1}| <= psi_j - psi_{j-1}`, which is equivalent to
   `psi_j >= psi_minus(rho_j) = max( (psi_p - (rho psi)_p)/(1 - rho_j), (psi_p + (rho psi)_p)/(1 + rho_j) )`.
+  These alone admit crossing slices (Mingone 2022, arXiv:2204.00312, section 2.1).
+  Sufficient, together with them: `psi_j / psi_{j-1} <= theta_j / theta_{j-1}`, or
+  `(rho_{j-1} - q rho_j)^2 <= (theta_j/theta_{j-1} - 1)(q^2 theta_{j-1}/theta_j - 1)` with
+  `q = psi_j / psi_{j-1}`. The calibration enforces the first (linear) branch; the check
+  `check_essvi_pair` accepts either. See section 13 item 14.
 
 Calibration (Corbetta, Cohort, Laachir, Martini 2019), slices in increasing `T`:
 
@@ -255,7 +260,9 @@ Calibration (Corbetta, Cohort, Laachir, Martini 2019), slices in increasing `T`:
    `psi_plus = -2 rho k*/(1+|rho|) + sqrt(4 rho^2 k*^2/(1+|rho|)^2 + 4 theta*/(1+|rho|))`,
    `theta > 0`, and for `j > 1`: `psi >= psi_minus(rho)` and `theta >= theta_{j-1}` (a
    half-line in `psi` through `psi_hat = (theta* - theta_{j-1}) / (rho k*)` whose direction
-   depends on the sign of `rho k*`; for `rho k* = 0` it requires `theta* >= theta_{j-1}`).
+   depends on the sign of `rho k*`; for `rho k* = 0` it requires `theta* >= theta_{j-1}`),
+   and `psi (theta_{j-1} + psi_{j-1} rho k*) <= psi_{j-1} theta*` (the linear sufficient
+   branch with `theta = theta* - rho psi k*`; an upper bound when the bracket is positive).
    Minimise `L` over the interval with bounded Brent (`minimize_scalar(method="bounded")`).
 3. Refine with 11 points of `rho` on `[rho_best - 0.1, rho_best + 0.1]`.
 4. If no `rho` is feasible (market ATM variance below the previous slice), replace
@@ -714,3 +721,14 @@ Every deviation from sections 4-7, with its reason.
     config headers carry these numbers. The 24-month synthetic study took 128 s on an idle
     machine and 492 s while sharing the CPU with other jobs, so the real-data timings above
     may also be upper estimates.
+14. **eSSVI calendar conditions (4.3.3).** Versions up to 0.1.0 enforced only the necessary
+    conditions, which earlier text called sufficient. On noise-free quotes from the slices
+    `(0.02, -0.1, 0.05)` and `(0.024, -0.6, 0.30)` at `T = (0.05, 0.06)` the fitter then
+    returned two accepted slices that cross (worst gap -4.8e-3). The calibration now also
+    imposes `psi_j theta_{j-1} <= psi_{j-1} theta_j`, which keeps the feasible `psi` set an
+    interval; the quadratic alternative branch is accepted by `check_essvi_pair` but not
+    searched, so the fit is slightly more conservative than necessary. On the 16 cached live
+    Deribit snapshots (32 fits, 288 adjacent pairs) no fitted pair was affected and fit
+    RMSE changed by under 1e-8 vol point; the committed synthetic results were rerun (see
+    REPORT.md).
+

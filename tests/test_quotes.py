@@ -167,3 +167,17 @@ def test_to_fit_input_masks(cfg: FilterConfig) -> None:
     masks = [np.arange(s.n) % 2 == 0 for s in filt.slices]
     sub = to_fit_input(filt.slices, masks=masks)
     assert all(sub.k[j].size == masks[j].sum() for j in range(3))
+
+
+def test_mid_iv_is_implied_from_the_mid_price(cfg: FilterConfig) -> None:
+    from surfbench.black import otm_price
+
+    snap, _ = _snapshot(seed=3)
+    filt = apply_filter(snap, "BTC", cfg)
+    gaps = []
+    for s in filt.slices:
+        st = np.sqrt(s.T)
+        mid_price = 0.5 * (otm_price(s.k, s.bid_iv * st) + otm_price(s.k, s.ask_iv * st))
+        assert np.allclose(otm_price(s.k, s.mid_iv * st), mid_price, rtol=1e-9, atol=1e-14)
+        gaps.append(np.abs(s.mid_iv - 0.5 * (s.bid_iv + s.ask_iv)).max())
+    assert max(gaps) > 1e-6  # the mid-price IV differs from the average of bid and ask IVs
