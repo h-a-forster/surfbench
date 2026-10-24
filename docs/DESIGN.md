@@ -376,7 +376,8 @@ second call after `--horizon-min` minutes gives a `t1` snapshot.
 
 ### 5.2 Snapshot construction and the pre-registered filter (`quotes`, M4)
 
-`configs/filter_v1.toml` is the filter. It is provisional until M4, when its thresholds are
+`configs/filter_v1.toml` is the filter (frozen on 2026-10-24, see CHANGELOG). It was
+provisional until M4, when its thresholds were
 frozen using live Deribit snapshots only (several hours of the day, never Tardis study
 months); the freeze date goes in CHANGELOG. Steps, in order, with counts recorded per step:
 
@@ -710,4 +711,6 @@ Every deviation from sections 4-7, with its reason.
 13. **Sizing (6.5), measured.** Four units from live Deribit pairs of 2026-10-23 (about 300
     filtered quotes in 10 expiries each) took 21-43 s (mean 29 s) on one worker, so the
     quick study is about 9 minutes and the full study about 30 minutes with 3 workers; the
-    config headers carry these numbers. The 24-month synthetic study took 492 s.
+    config headers carry these numbers. The 24-month synthetic study took 128 s on an idle
+    machine and 492 s while sharing the CPU with other jobs, so the real-data timings above
+    may also be upper estimates.

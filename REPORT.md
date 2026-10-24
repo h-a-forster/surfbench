@@ -17,11 +17,11 @@ statement in this report is about Deribit data. Generated tables:
 | expiries | 10 per unit (1.3 to 363 days; the 1.3-day expiry is removed by the 2-day filter rule) |
 | quotes | calls and puts on a fixed 1-2-5 strike grid over +-2.5 ATM standard deviations, coin-priced by Black-76; 0.5 vol point Gaussian noise on mid IVs; full spread 2 vol points at the money, widening by 50% per ATM standard deviation |
 | `t1` | 15 minutes later: forwards moved by `N(0, 0.3%)`, all IVs scaled by `1 + N(0, 1%)`, fresh noise, same strikes |
-| filter | `configs/filter_v1.toml` (sha256 `098dc3b0f964...`) applied unchanged |
+| filter | `configs/filter_v1.toml` (frozen version, sha256 `184be3fca2c4...`) applied unchanged |
 | quotes used | BTC 5,023 and ETH 4,980 `t0` quotes in 216 slices each; every model fit every slice in every fold (0 failed slice fits) |
 | inference | 10,000 date-bootstrap resamples, 100,000 sign flips, Holm over 20 tests, seed 20261023 |
 | software | surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1 |
-| wall time | 492 s with 3 workers (1,370 s of unit compute; mean time per unit and model for its 7 fits: SVI 13.5 s, SABR 6.7 s, SSVI 4.0 s, eSSVI 3.8 s, baseline 0.01 s) |
+| wall time | 128 s with 3 workers on an otherwise idle machine (358 s of unit compute; mean time per unit and model for its 7 fits: SVI 3.3 s, SABR 1.7 s, eSSVI 1.3 s, SSVI 1.0 s, baseline 0.004 s). The run with the draft filter file (identical thresholds) took 492 s while other jobs shared the CPU and gave identical statistics. |
 
 The synthetic study validates the machinery; it is not evidence about markets. It shows that
 (a) every model recovers its own family to the noise floor through the whole quote pipeline,
@@ -99,10 +99,31 @@ statistic from live snapshots is published.
 
 ## 4. The quote filter
 
-`configs/filter_v1.toml` is being reviewed on live Deribit API snapshots (BTC and ETH, a pair
-every 30 minutes from 2026-10-23 22:09 UTC) before any study date is examined; no Tardis study
-month has been seen. Quote age cannot be checked on live summaries (the endpoint has no
-per-instrument quote time), so that rule is applied to Tardis data only.
+`configs/filter_v1.toml` was **frozen on 2026-10-24 with the draft thresholds unchanged**. The
+review used 16 live Deribit API snapshots (BTC and ETH, a `t0`/`t1` pair every 30 minutes from
+2026-10-23 22:09 to 2026-10-24 01:54 UTC, about four hours of one night) and no Tardis study
+month. Aggregate counts per snapshot and underlying (BTC and ETH pooled):
+
+| variant | mean kept quotes (min) | kept expiries |
+|---|---|---|
+| filter v1 | 293 (264) | 10 |
+| minimum bid one tick instead of two | 293 (264) | 10 |
+| minimum bid three ticks | 290 (263) | 10 |
+| spread cap 10 or 20 vol points instead of 15 | 293 (264) | 10 |
+| minimum absolute delta 0.01 instead of 0.02 | 315 (281) | 10 |
+| minimum absolute delta 0.05 | 245 (224) | 10 |
+| minimum time to expiry 1 day instead of 2 | 305 (278) | 11 |
+| minimum quotes per expiry 6 or 10 instead of 8 | 293 (264) | 10 |
+
+On these snapshots only the delta floor and the 2-day expiry rule change the quote set
+materially; the spread cap and the per-expiry minimum never bind, and the bid floor removes
+few quotes that the delta floor would keep. Quotes removed by the one-tick bid rule and by the
+delta floor sat visibly further from a smooth fit to the kept quotes, in units of their own
+spread, than the kept quotes did, which supports keeping both rules. Nothing argued for a
+change, so the draft was frozen as it stood. Limits of the review: one night of one season,
+live API summaries rather than the Tardis files (quote age cannot be checked on live
+summaries, so that rule is applied to Tardis data only), and 2026 market structure; the
+2020 chains are thinner, which the per-step counts in each unit file will show.
 
 ## 5. Limitations
 
@@ -117,7 +138,8 @@ per-instrument quote time), so that rule is applied to Tardis data only.
   vol point without noise. On 60 noisy synthetic slices our SVI and SABR calibrators never
   ended above the objective found by scipy's differential evolution (largest relative gap
   1.8e-9; `results/calibrator-check/`), so they do not get stuck in visibly worse local
-  minima there. eSSVI and SSVI were not part of that check, real smiles may be harder, and
+  minima there. A development run on live Deribit slices (not committed, under the data
+  policy) gave the same picture. eSSVI and SSVI were not part of that check, real smiles may be harder, and
   the optional svi-py oracle comparison was not run.
 - **Next-snapshot horizon.** 15 minutes measures stability, not forecasting skill.
 - **Multiple testing** covers only the 20 primary comparisons; every other number is a

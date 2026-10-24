@@ -1,6 +1,6 @@
 # Leaderboard: synthetic-v1
 
-Source: `synthetic`. Filter v1 (sha256 `098dc3b0f964`). surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1. Seed 20261023; 10000 bootstrap resamples (dates resampled), 100000 sign flips; next-snapshot horizon 15 min.
+Source: `synthetic`. Filter v1 (sha256 `184be3fca2c4`). surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1. Seed 20261023; 10000 bootstrap resamples (dates resampled), 100000 sign flips; next-snapshot horizon 15 min.
 
 Means over dates with 95% percentile bootstrap intervals. Errors in vol points; shares in percent. Arbitrage shares are pooled over slices (pairs) with a date-cluster bootstrap interval.
 

@@ -1,8 +1,8 @@
 # Pre-registered quote filter, version 1 (docs/DESIGN.md section 5.2).
 #
-# Status: PROVISIONAL. The thresholds are frozen at milestone M4 using live Deribit API
-# snapshots only, never Tardis study months, and recorded with their date in CHANGELOG.md.
-# After freezing, any change needs a new file (filter_v2.toml) and a rerun of every study.
+# Status: FROZEN on 2026-10-24, thresholds unchanged from the draft, after review on 16 live
+# Deribit API snapshots (8 pairs, 2026-10-23 22:09 to 2026-10-24 01:54 UTC); no Tardis study
+# month was seen. Any change needs a new file (filter_v2.toml) and a rerun of every study.
 
 version = 1
 

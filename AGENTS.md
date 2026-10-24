@@ -52,7 +52,7 @@ docstring naming its DESIGN section and milestone.
 | `arbitrage.py` | butterfly, price convexity, calendar, slopes | M3 |
 | `quotes.py`, `data/` | filter, forwards, Tardis extractor, Deribit live adapter | M4 |
 | `metrics.py`, `study/`, `cli.py` | CV, next-snapshot, runner, report | M5 |
-| `configs/filter_v1.toml` | pre-registered quote filter (provisional until M4) | M4 |
+| `configs/filter_v1.toml` | pre-registered quote filter (frozen 2026-10-24) | M4 |
 | `configs/study_quick.toml`, `study_full.toml` | study sizes | M5 |
 | `scripts/reference_values.py` | independent oracle values (DESIGN 7.1) | done |
 
@@ -117,11 +117,20 @@ Done:
   shares, exploratory calm/stress split; `summary.json` and `leaderboard.md`), `fit`,
   `study run` and `study report` CLI. Synthetic end-to-end, resume and report-equals-
   recomputation tests pass.
+
 - M6 (synthetic part): `configs/study_synthetic.toml`, 24 dates x 2 underlyings from
-  arbitrage-free eSSVI/SVI/SABR truths, run in 492 s with 3 workers; committed results in
+  arbitrage-free eSSVI/SVI/SABR truths, run in 128 s on 3 workers (492 s under load); results in
   `results/synthetic-v1/`; REPORT.md, README.md, CHANGELOG 0.1.0 (no tag). Measured real-data
-  compute: 21-43 s (mean 29 s) per unit on 4 live Deribit units (written into the study config headers).
-- Tests: fast suite and `--runslow` pass on Python 3.13; fast suite passes on Python 3.11.
+  compute: 21-25 s per unit on live Deribit pairs (written into the study config headers).
+- Calibrator check (`scripts/calibrator_check.py`, `results/calibrator-check/`): on 60 noisy
+  synthetic slices our SVI and SABR fits are never worse than scipy differential evolution
+  (largest relative objective gap 1.8e-9). A development rerun on 40 live slices (not
+  committed) gave the same picture.
+- Filter freeze: `configs/filter_v1.toml` frozen on 2026-10-24, thresholds unchanged, after
+  16 live snapshots (aggregate counts in REPORT.md section 4). The synthetic study was rerun
+  with the frozen file (its SHA-256 changed with the status comment).
+- Tests: fast suite (139 passed, 3 skipped) and `--runslow` (142 passed) on Python 3.13; fast
+  suite passes on Python 3.11.
 
 Blocked or watch:
 - The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
@@ -130,13 +139,11 @@ Blocked or watch:
 - CI has never run on GitHub.
 
 Next (in order):
-1. Filter freeze: review `configs/filter_v1.toml` on the live pairs in `cache/deribit/`
-   (script `tmp/freeze/analyze.py`, not committed) and record the decision in CHANGELOG.
-2. After 2026-10-24 22:00 UTC: `uv run surfbench data tardis --config configs/study_quick.toml`
+1. After 2026-10-24 22:00 UTC: `uv run surfbench data tardis --config configs/study_quick.toml`
    (12 requests per session; repeat on later days until `data status` shows every month done
    or unavailable; stop on 429).
-3. `for i in 1 2 3; do uv run surfbench study run --config configs/study_quick.toml --workers 3 && break; done`
+2. `for i in 1 2 3; do uv run surfbench study run --config configs/study_quick.toml --workers 3 && break; done`
    then `uv run surfbench study report --config configs/study_quick.toml`; commit
    `results/quick-v1/`; rewrite REPORT.md sections 2-3 with the real numbers (if fewer than 12
    dates are usable, report descriptively only).
-4. Optional: svi-py / QuantLib oracle fixtures (DESIGN 7.5); full study.
+3. Optional: svi-py / QuantLib oracle fixtures (DESIGN 7.5); full study.

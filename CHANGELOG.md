@@ -40,6 +40,8 @@ Tardis.dev free download quota was locked during development (see REPORT.md).
 
 ### Notes
 
-- `configs/filter_v1.toml` thresholds were reviewed on live Deribit snapshots on
-  2026-10-23/24; see the filter section of REPORT.md for the freeze status.
+- `configs/filter_v1.toml` frozen on 2026-10-24 with the draft thresholds unchanged, after a
+  review on 16 live Deribit snapshots (8 pairs, 22:09 to 01:54 UTC) and before any Tardis
+  study month was seen; see REPORT.md section 4. Only its status comment changed, so its
+  SHA-256 changed and the synthetic study was rerun with the frozen file.
 - Deviations from the design are listed in `docs/DESIGN.md` section 13.

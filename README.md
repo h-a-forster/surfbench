@@ -70,7 +70,7 @@ uv run pytest
 
 ## Quick start
 
-Run the synthetic validation study (no download; about 8 minutes on 3 worker processes):
+Run the synthetic validation study (no download; 2 to 8 minutes on 3 worker processes):
 
 ```sh
 uv run surfbench study run    --config configs/study_synthetic.toml --workers 3

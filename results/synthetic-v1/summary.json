@@ -363,23 +363,23 @@
       ],
       "failures": {
         "baseline": {
-          "fit_time_s_mean": 0.013300404166632992,
+          "fit_time_s_mean": 0.0040435708324366715,
           "n_failed_slice_fits": 0
         },
         "essvi": {
-          "fit_time_s_mean": 3.68541924166675,
+          "fit_time_s_mean": 1.2639501874994796,
           "n_failed_slice_fits": 0
         },
         "sabr": {
-          "fit_time_s_mean": 6.602305275000011,
+          "fit_time_s_mean": 1.6709441083342729,
           "n_failed_slice_fits": 0
         },
         "ssvi": {
-          "fit_time_s_mean": 4.2043448958326435,
+          "fit_time_s_mean": 1.0481275208355025,
           "n_failed_slice_fits": 0
         },
         "svi": {
-          "fit_time_s_mean": 13.506464295832606,
+          "fit_time_s_mean": 3.3053416041651267,
           "n_failed_slice_fits": 0
         }
       },
@@ -1096,23 +1096,23 @@
       ],
       "failures": {
         "baseline": {
-          "fit_time_s_mean": 0.014569262499511145,
+          "fit_time_s_mean": 0.003990662499442503,
           "n_failed_slice_fits": 0
         },
         "essvi": {
-          "fit_time_s_mean": 3.990946008332988,
+          "fit_time_s_mean": 1.3336538291666027,
           "n_failed_slice_fits": 0
         },
         "sabr": {
-          "fit_time_s_mean": 6.786501820833412,
+          "fit_time_s_mean": 1.6868700124996394,
           "n_failed_slice_fits": 0
         },
         "ssvi": {
-          "fit_time_s_mean": 3.8362197499997515,
+          "fit_time_s_mean": 1.0304398958342063,
           "n_failed_slice_fits": 0
         },
         "svi": {
-          "fit_time_s_mean": 13.529059812499327,
+          "fit_time_s_mean": 3.289456283334706,
           "n_failed_slice_fits": 0
         }
       },
@@ -1865,10 +1865,10 @@
       3
     ],
     "config_sha256": "9dea1ccc34c29126905f78c31324801963c848fedadd7a5dc371800e93e44165",
-    "filter_sha256": "098dc3b0f964a04d7f44e2dd09b395ca90b937ded983c7d038e9c723720e4473",
+    "filter_sha256": "184be3fca2c483d921a847ae336975cdf966b033176366b27e26307914e9fe29",
     "filter_version": 1,
     "horizon_min": 15,
-    "last_run_wall_s": 492.12857200000144,
+    "last_run_wall_s": 127.73848179999914,
     "n_boot": 10000,
     "n_perm": 100000,
     "numpy": "2.5.4",
@@ -1877,7 +1877,7 @@
     "scipy": "1.18.1",
     "seed": 20261023,
     "t0": "00:01:00",
-    "unit_compute_s": 1370.0064680000069,
+    "unit_compute_s": 357.9960834999947,
     "workers": 3
   },
   "regimes": {
