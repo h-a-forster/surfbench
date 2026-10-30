@@ -1,8 +1,8 @@
 # surfbench design
 
-Status: implemented in v0.1.0 (2026-10-24). This document is the specification for v0.1. Formulas,
-constraints, reference values and done-checks here are binding for the implementation;
-deviations go in section 12 with a reason.
+Status: implemented in v0.1.0 (released 2026-10-30). This document is the specification for v0.1.
+Formulas, constraints, reference values and done-checks here are binding for the
+implementation; deviations go in section 13 with a reason.
 
 ## 1. Goal, headline and claims
 
@@ -723,17 +723,17 @@ Every deviation from sections 4-7, with its reason.
     config headers carry these numbers. The 24-month synthetic study took 128 s on an idle
     machine and 492 s while sharing the CPU with other jobs, so the real-data timings above
     may also be upper estimates.
-14. **eSSVI calendar conditions (4.3.3).** Versions up to 0.1.0 enforced only the necessary
-    conditions, which earlier text called sufficient. On noise-free quotes from the slices
-    `(0.02, -0.1, 0.05)` and `(0.024, -0.6, 0.30)` at `T = (0.05, 0.06)` the fitter then
-    returned two accepted slices that cross (worst gap -4.8e-3). The calibration now keeps
-    only the `psi` values where one of Mingone's two sufficient branches holds, found by a
-    33-point scan of the margin with Brent refinement (a feasible island narrower than the
-    scan step could be missed, which is conservative). Searching only the linear branch,
-    which would keep the set an interval, was tried and raised the synthetic eSSVI CV RMSE
-    by 0.02 to 0.10 vol point, so both branches are searched. With both, the synthetic study
-    and the fits on the 16 cached live Deribit snapshots (32 fits, 288 adjacent pairs) are
-    unchanged to about 1e-8 vol point.
+14. **eSSVI calendar conditions (4.3.3).** The code first committed (before the 0.1.0
+    release) enforced only the necessary conditions, which earlier text called sufficient.
+    On noise-free quotes from the slices `(0.02, -0.1, 0.05)` and `(0.024, -0.6, 0.30)` at
+    `T = (0.05, 0.06)` the fitter then returned two accepted slices that cross (worst gap
+    -4.8e-3). The calibration now keeps only the `psi` values where one of Mingone's two
+    sufficient branches holds, found by a 33-point scan of the margin with Brent refinement
+    (a feasible island narrower than the scan step could be missed, which is conservative).
+    Searching only the linear branch, which would keep the set an interval, was tried and
+    raised the synthetic eSSVI CV RMSE by 0.02 to 0.10 vol point, so both branches are
+    searched. With both, the synthetic study and the fits on the 16 cached live Deribit
+    snapshots (32 fits, 288 adjacent pairs) are unchanged to about 1e-8 vol point.
 
 15. **Run provenance and resume (6.1-6.4, 5.1).** The run manifest now includes the
     synthetic generator inputs (seed, truths, noise, spreads, strike count, times), and each

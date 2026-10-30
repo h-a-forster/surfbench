@@ -67,7 +67,7 @@ uv run ruff format --check .
 uv run python scripts/reference_values.py
 ```
 
-## How to run (after M4-M5)
+## How to run
 
 ```sh
 uv run surfbench data tardis --config configs/study_quick.toml    # resumable; stops on quota
@@ -82,80 +82,36 @@ about 30 minutes, download projected 15-30 GB over many quota windows). Watch
 
 ## Status and next steps
 
-Updated: 2026-10-24.
+Updated: 2026-10-30.
 
-Done:
-- Scaffold: package skeleton, CLI stub, configs, CI, hygiene files, `docs/DESIGN.md`.
-- Research checks recorded in DESIGN (Tardis terms and file layout, Deribit coin-price
-  convention, reference values agreeing with QuantLib 1.44).
-- M1: `black` (prices, vega, delta, safeguarded Newton-bisection IV inversion), `stats`
-  (bootstrap and moving-block bootstrap, pooled-ratio bootstrap, sign-flip test, Holm, rank
-  probabilities), `checkpoint` (atomic unit files, manifest check, progress log, path
-  scrubbing, process pool capped at 3, retries up to 3 attempts). Tests in
-  `tests/test_black.py`, `test_stats.py`, `test_checkpoint.py`.
-- M2: the five models (`models/`: baseline, raw SVI quasi-explicit + polish, SSVI power
-  law, eSSVI Corbetta et al. with a `rho` polish, SABR Hagan) behind one objective, and
-  `synthetic` (random admissible surfaces, noisy snapshots). Noise-free own-family recovery
-  is below 1e-7 vol point for every model; constraints are asserted on every accepted
-  fit. Deviations in DESIGN section 13. Optional svi-py/QuantLib oracle fixtures were not
-  produced (SABR is already checked against QuantLib through the reference values).
-- M3: `arbitrage` (Durrleman `g` on wide and in-range grids, call-price monotonicity and
-  convexity cross-check, calendar gaps between adjacent accepted slices, slope bound).
-  Vogt slice, admissible SSVI sets, eSSVI butterfly/calendar examples match the reference
-  values; `g` and price checks agree on random SVI slices; noisy SSVI/eSSVI fits show no
-  violations.
-- M4 (offline parts): `quotes` (canonical snapshot files with SHA-256, filter steps 1-7 with
-  per-step counts, data-quality diagnostics), `data.tardis` (streaming extractor with early
-  stop, 404/429/timeout handling, quota file, cache cap, seeded month order, session cap),
-  `data.deribit` (live summary adapter), `data tardis|deribit|status` CLI. All adapter
-  tests are offline (fake opener). A live Deribit smoke test gave plausible step counts
-  (BTC: 930 instruments, 318 quotes in 10 slices after the filter).
-- M5: `metrics` (folds, IV errors, inside-spread rate), `study.runner` (tardis, deribit and
-  synthetic sources; CV, wing, full and next-snapshot fits; arbitrage diagnostics;
-  checkpointed units, 3 workers max), `study.report` (bootstrap intervals, moving-block
-  robustness, sign-flip tests with Holm over 20 tests, rank probabilities, pooled arbitrage
-  shares, exploratory calm/stress split; `summary.json` and `leaderboard.md`), `fit`,
-  `study run` and `study report` CLI. Synthetic end-to-end, resume and report-equals-
-  recomputation tests pass.
+Done (v0.1.0 in CHANGELOG, dated 2026-10-30; not tagged yet):
+- M1-M5 complete: numerics, statistics and checkpointing; the five models behind one
+  objective; arbitrage diagnostics; quote filter, Tardis extractor and Deribit adapter
+  (tested offline); metrics, study runner, report and CLI. Deviations in DESIGN section 13.
+- M6 synthetic part: `configs/study_synthetic.toml`, 24 dates x 2 underlyings from
+  arbitrage-free eSSVI/SVI/SABR truths, results in `results/synthetic-v1/` (last run 134 s
+  on 3 workers), written up in REPORT.md sections 1-2.
+- Calibrator check against scipy differential evolution (`results/calibrator-check/`).
+- Filter v1 frozen on 2026-10-24 after 16 live snapshots (REPORT.md section 4).
+- Review fixes of 2026-10-24 (anchored ignore rules, eSSVI sufficient calendar conditions,
+  run provenance and resume, Tardis retries): CHANGELOG 0.1.0 "Fixed", DESIGN 13 items 14-15.
+- Docs and release notes (`docs/release-notes-0.1.0.md`) state that every published result
+  is synthetic.
 
-- M6 (synthetic part): `configs/study_synthetic.toml`, 24 dates x 2 underlyings from
-  arbitrage-free eSSVI/SVI/SABR truths, run in 128 s on 3 workers (492 s under load; 134 s for the rerun after the eSSVI fix); results in
-  `results/synthetic-v1/`; REPORT.md, README.md, CHANGELOG 0.1.0 (no tag). Measured real-data
-  compute: 21-43 s (mean 29 s) per unit on live Deribit pairs (written into the study config
-  headers).
-- Calibrator check (`scripts/calibrator_check.py`, `results/calibrator-check/`): on 60 noisy
-  synthetic slices our SVI and SABR fits are never worse than scipy differential evolution
-  (largest relative objective gap 1.8e-9). A development rerun on 40 live slices (not
-  committed) gave the same picture.
-- Filter freeze: `configs/filter_v1.toml` frozen on 2026-10-24, thresholds unchanged, after
-  16 live snapshots (aggregate counts in REPORT.md section 4). The synthetic study was rerun
-  with the frozen file (its SHA-256 changed with the status comment).
-- Review fixes (2026-10-24): `.gitignore` rules anchored (`/data/` had hidden
-  `src/surfbench/data/` from git and from the wheel; a hygiene test now checks this);
-  eSSVI calibration and `check_essvi_pair` use Mingone's sufficient calendar conditions
-  (the old ones were only necessary; DESIGN 13 item 14); `--force-new` always restarts;
-  snapshot changes raise a clean mismatch; synthetic months record and check their
-  generator inputs; `study report` refuses a stale run and drops dates removed from the
-  config; `--limit` counts unfinished units; a no-op resume keeps the run timing; Tardis
-  retries truncated streams and `http.client` errors and stops cleanly on a full cache
-  (DESIGN 13 item 15). Boundary tests kill one-line mutants of every constraint check.
-  The synthetic study was rerun: statistics unchanged to printed precision.
-- Tests: fast suite (162 passed, 3 skipped) on Python 3.13 and 3.11, `--runslow` (165
-  passed) on Python 3.13.
-
-Blocked or watch:
-- The Tardis free download returned `429` with `Retry-After` about 24 hours on 2026-10-23
-  around 21:45 UTC. Do not request Tardis files before 2026-10-24 22:00 UTC. The market-data
-  quick study (M6 proper) has therefore not been run; no market-data result exists.
-- CI has never run on GitHub. A fresh clone of the repository must pass `uv run pytest`
-  before the first push (the missing `surfbench.data` package was found this way).
-
-Next (in order):
-1. After 2026-10-24 22:00 UTC: `uv run surfbench data tardis --config configs/study_quick.toml`
-   (12 requests per session; repeat on later days until `data status` shows every month done
-   or unavailable; stop on 429).
-2. `for i in 1 2 3; do uv run surfbench study run --config configs/study_quick.toml --workers 3 && break; done`
-   then `uv run surfbench study report --config configs/study_quick.toml`; commit
-   `results/quick-v1/`; rewrite REPORT.md sections 2-3 with the real numbers (if fewer than 12
-   dates are usable, report descriptively only).
-3. Optional: svi-py / QuantLib oracle fixtures (DESIGN 7.5); full study.
+Open:
+- **Market-data quick study (M6 proper) not run.** No market-data result exists. It needs
+  the Tardis free downloads (projected 2-3 GB streamed, 12 files per session, a 24-hour
+  lockout after about a dozen files was observed on 2026-10-23) and about 9 minutes of
+  compute. Steps:
+  1. `uv run surfbench data tardis --config configs/study_quick.toml`, repeated on later
+     days until `data status` shows every month done or unavailable; stop on 429.
+  2. `for i in 1 2 3; do uv run surfbench study run --config configs/study_quick.toml --workers 3 && break; done`,
+     then `uv run surfbench study report --config configs/study_quick.toml`; commit
+     `results/quick-v1/`; rewrite REPORT.md sections 2-3 and 5 and the README status with
+     the real numbers (descriptive only if fewer than 12 dates are usable).
+- CI has never run on GitHub (the workflow now also triggers on pushes to `main`). Check
+  the first run; actions are pinned by tag, not commit SHA.
+- Release: tag `v0.1.0` and publish the GitHub release from `docs/release-notes-0.1.0.md`
+  (owner).
+- Optional: svi-py / QuantLib oracle fixtures (DESIGN 7.5); eSSVI and SSVI in the calibrator
+  check; full study.

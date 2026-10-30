@@ -19,7 +19,8 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-CI runs these on pull requests (Ubuntu with Python 3.11 and 3.13, Windows with Python 3.13).
+CI runs these on pushes to `main` and on pull requests (Ubuntu with Python 3.11 and 3.13,
+Windows with Python 3.13).
 
 Test rules:
 

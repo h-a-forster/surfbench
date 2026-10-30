@@ -1,9 +1,9 @@
 # surfbench report
 
-Status on 2026-10-24 (v0.1.0): the full pipeline has been implemented, tested and run end to
-end on a **synthetic** validation study. The **market-data quick study has not been run**: the
-Tardis.dev free download quota was locked for 24 hours during development (section 3), so no
-statement in this report is about Deribit data. Generated tables:
+Status on 2026-10-30 (v0.1.0): the full pipeline has been implemented, tested and run end to
+end on a **synthetic** validation study. **Every result in this report is synthetic.** The
+market-data quick study has not been run (section 3 lists what it needs), so no statement in
+this report is about Deribit data or real option markets. Generated tables:
 [`results/synthetic-v1/leaderboard.md`](results/synthetic-v1/leaderboard.md) and
 [`summary.json`](results/synthetic-v1/summary.json).
 
@@ -21,7 +21,7 @@ statement in this report is about Deribit data. Generated tables:
 | quotes used | BTC 5,023 and ETH 4,980 `t0` quotes in 216 slices each; every model fit every slice in every fold (0 failed slice fits) |
 | inference | 10,000 date-bootstrap resamples, 100,000 sign flips, Holm over 20 tests, seed 20261023 |
 | software | surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1 |
-| wall time | 128 s with 3 workers on an otherwise idle machine (358 s of unit compute; mean time per unit and model for its 7 fits: SVI 3.3 s, SABR 1.7 s, eSSVI 1.3 s, SSVI 1.0 s, baseline 0.004 s). The run with the draft filter file (identical thresholds) took 492 s while other jobs shared the CPU and gave identical statistics; the rerun after the eSSVI calendar fix (section 2) took 134 s (371 s of unit compute) and agrees to the printed precision. |
+| wall time | 134 s with 3 workers (371 s of unit compute; mean time per BTC unit and model for its 7 fits: SVI 3.4 s, SABR 1.7 s, eSSVI 1.4 s, SSVI 1.1 s, baseline 0.004 s). Earlier runs of the same study gave the same statistics to the printed precision: 128 s on an idle machine before the eSSVI calendar fix (section 2), and 492 s with the draft filter file (identical thresholds) while other jobs shared the CPU. |
 
 The synthetic study validates the machinery; it is not evidence about markets. It shows that
 (a) every model recovers its own family to the noise floor through the whole quote pipeline,
@@ -84,24 +84,36 @@ dates). That comparison measured the truth's arbitrage rather than the models, s
 generator now draws smooth, arbitrage-free truths (DESIGN section 13, item 5). The run
 reported here is the only one with the current generator.
 
-eSSVI calendar fix. Version 0.1.0 of the eSSVI calibration enforced only necessary calendar
-conditions, so it could in principle accept crossing slices (DESIGN section 13, item 14).
-After the fix (Mingone's sufficient conditions, both branches searched) the study was rerun
-from scratch on the same snapshots: every statistic above is unchanged to the printed
-precision (largest change about 1e-9 vol point), and no eSSVI fit on the 16 cached live
-Deribit snapshots changed either. A first version of the fix that searched only the linear
-branch was more conservative and raised eSSVI's CV RMSE by 0.02 to 0.10 vol point; it was
-not kept.
+eSSVI calendar fix. The eSSVI calibration first committed (before the 0.1.0 release)
+enforced only necessary calendar conditions, so it could in principle accept crossing slices
+(DESIGN section 13, item 14). After the fix (Mingone's sufficient conditions, both branches
+searched) the study was rerun from scratch on the same snapshots: every statistic above is
+unchanged to the printed precision (largest change about 1e-8 vol point), and no eSSVI fit
+on the 16 cached live Deribit snapshots changed either. A first version of the fix that
+searched only the linear branch was more conservative and raised eSSVI's CV RMSE by 0.02 to
+0.10 vol point; it was not kept.
 
 ## 3. The market-data study (not run)
 
 Plan: `configs/study_quick.toml`, 28 quarterly first-of-month dates (2020-01 to 2026-10),
 BTC and ETH, `t0 = 00:01 UTC`, 15-minute horizon, pre-registered filter v1; commands in
-README.md. It was not run because the free Tardis.dev download answered every request with
-`429` and a `Retry-After` of about 24 hours after about a dozen research requests on
-2026-10-23 around 21:45 UTC; no request may be made before about 2026-10-24 22:00 UTC. The
-extractor is tested offline only; its first real run will also be the first check of the
-2019-2020 file layout.
+README.md. It has not been run as of this report. During development the free Tardis.dev
+download answered every request with `429` and a `Retry-After` of about 24 hours after
+about a dozen research requests (2026-10-23, around 21:45 UTC). The extractor is tested
+offline only; its first real run will also be the first check of the 2019-2020 file layout.
+
+What running it needs:
+
+- **Downloads.** The free first-of-month files, streamed for `h + 1 = 16` minutes each:
+  projected 2-3 GB in total, fetched at most 12 files per session (`max_requests_per_session`)
+  and stopped by the first `429`, so expect several daily quota windows. Only the
+  extracted snapshots are kept (a few hundred KB each, capped at 2 GB in `cache/tardis/`).
+  `surfbench data status` shows which months are done, unavailable or pending.
+- **Usable dates.** If fewer than 12 dates are usable, the results are to be reported
+  descriptively only (DESIGN section 10).
+- **Compute.** About 9 minutes with 3 workers (measured below); results go to
+  `results/quick-v1/`, and sections 2, 3 and 5 of this report are then rewritten with the
+  real numbers.
 
 Measured compute on real data: four units from two live Deribit snapshot pairs of
 2026-10-23 (about 300 filtered quotes in 10 expiries per underlying) took 21 to 43 seconds
@@ -139,7 +151,7 @@ summaries, so that rule is applied to Tardis data only), and 2026 market structu
 
 ## 5. Limitations
 
-- **No market-data result yet.** Everything above is synthetic. The synthetic ranking (SVI
+- **No market-data result.** Everything above is synthetic. The synthetic ranking (SVI
   first) mostly reflects flexibility: SVI has five parameters per slice and the truths are
   smooth, so the result says nothing about real smiles, stale quotes or wing behaviour.
 - **Synthetic noise** is homoscedastic in the mid and spreads are deterministic; real quotes

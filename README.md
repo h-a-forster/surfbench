@@ -29,10 +29,13 @@ one pre-registered quote filter and one objective. To our knowledge there is no 
 benchmark that scores these models on held-out quotes, arbitrage and next-snapshot error
 together (searched 2026-10-23; see `docs/DESIGN.md` section 12).
 
-> **Status: v0.1.0, pipeline complete, market-data study pending.** Every component is
-> implemented and tested, and a 24-month synthetic validation study has run end to end
-> ([REPORT.md](REPORT.md)). The quick study on Deribit data waits on the Tardis.dev free
-> download quota; no market-data results are published yet.
+> **Status: v0.1.0. All published results are synthetic.** Every component is implemented
+> and tested, and a 24-month synthetic validation study has run end to end
+> ([REPORT.md](REPORT.md)). The quick study on Deribit data has not been run, so nothing in
+> this repository is a statement about real option markets yet. Running it needs the
+> free Tardis.dev downloads (projected 2-3 GB streamed but only tens of MB kept, spread over
+> several daily quota windows) and about 9 minutes of compute; see
+> [The market-data study](#the-market-data-study).
 
 ## Models
 

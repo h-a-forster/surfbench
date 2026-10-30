@@ -6,7 +6,43 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-30
+
+First release, with the full pipeline. Results are synthetic only: the market-data quick
+study on Deribit data has not been run (see REPORT.md section 3 for what it needs).
+
+### Added
+
+- `black`: normalised Black-76 prices, vega, forward delta and a vectorised safeguarded
+  Newton-bisection implied-volatility inversion for coin-settled options.
+- `stats`: percentile and moving-block bootstrap intervals, pooled-ratio (cluster)
+  bootstrap, two-sided sign-flip test (random and exact), Holm adjustment, rank
+  probabilities.
+- `checkpoint`: atomic per-unit JSON files, run manifest, progress log with path scrubbing,
+  process pool capped at 3 workers, error units retried up to 3 attempts.
+- Models behind one objective (half-spread-weighted IV least squares): quadratic baseline,
+  raw SVI (quasi-explicit calibration with a least-squares polish, Lee's bound imposed),
+  SSVI with power-law curvature (global), eSSVI (Corbetta et al. robust slice-by-slice
+  calibration, with Mingone's (2022) sufficient calendar conditions), SABR (Hagan
+  lognormal, `beta = 1`).
+- `arbitrage`: Durrleman's `g` on wide and in-range grids, call-price monotonicity and
+  convexity cross-check, calendar gaps between adjacent expiries, slope bound.
+- `quotes`: canonical snapshot files with SHA-256, the pre-registered quote filter with
+  per-step counts, data-quality diagnostics.
+- `data.tardis`: streaming extractor for the free first-of-month Tardis.dev files (early
+  stop after `t1`, quota lock on HTTP 429, 404 handling, retries, cache cap, seeded month
+  order); `data.deribit`: live snapshot adapter for development.
+- `metrics`, `study.runner`, `study.report`: 5-fold cross-validation, wing and
+  next-snapshot errors, quote persistence, arbitrage shares, bootstrap intervals, Holm over
+  the 20 pairwise comparisons, exploratory calm/stress split.
+- CLI: `surfbench data tardis|deribit|status`, `surfbench fit`, `surfbench study run|report`.
+- `configs/study_synthetic.toml` and its committed results (`results/synthetic-v1/`).
+- Boundary tests for the SVI, SSVI and eSSVI constraint checks, the calendar and
+  price-monotonicity diagnostics and the mid-IV computation.
+
 ### Fixed
+
+Found in review of the code first committed on 2026-10-24, before this release.
 
 - Packaging: the `surfbench.data` package (Tardis extractor, Deribit adapter) was excluded
   from git and from built distributions by an unanchored `data/` ignore rule; the rules are
@@ -21,43 +57,6 @@ All notable changes are listed here. The format follows
   dates no longer in the configuration.
 - Tardis: dropped connections (truncated gzip, `IncompleteRead`) are retried instead of
   marking the month invalid; a full cache stops the session cleanly.
-
-### Added
-
-- Boundary tests for the SVI, SSVI and eSSVI constraint checks, the calendar and
-  price-monotonicity diagnostics and the mid-IV computation.
-
-## [0.1.0] - 2026-10-24
-
-First version with the full pipeline. The market-data quick study has not been run yet: the
-Tardis.dev free download quota was locked during development (see REPORT.md).
-
-### Added
-
-- `black`: normalised Black-76 prices, vega, forward delta and a vectorised safeguarded
-  Newton-bisection implied-volatility inversion for coin-settled options.
-- `stats`: percentile and moving-block bootstrap intervals, pooled-ratio (cluster)
-  bootstrap, two-sided sign-flip test (random and exact), Holm adjustment, rank
-  probabilities.
-- `checkpoint`: atomic per-unit JSON files, run manifest, progress log with path scrubbing,
-  process pool capped at 3 workers, error units retried up to 3 attempts.
-- Models behind one objective (half-spread-weighted IV least squares): quadratic baseline,
-  raw SVI (quasi-explicit calibration with a least-squares polish, Lee's bound imposed),
-  SSVI with power-law curvature (global), eSSVI (Corbetta et al. robust slice-by-slice
-  calibration under the Hendriks-Martini calendar conditions, necessary only; see Unreleased), SABR (Hagan lognormal,
-  `beta = 1`).
-- `arbitrage`: Durrleman's `g` on wide and in-range grids, call-price monotonicity and
-  convexity cross-check, calendar gaps between adjacent expiries, slope bound.
-- `quotes`: canonical snapshot files with SHA-256, the pre-registered quote filter with
-  per-step counts, data-quality diagnostics.
-- `data.tardis`: streaming extractor for the free first-of-month Tardis.dev files (early
-  stop after `t1`, quota lock on HTTP 429, 404 handling, retries, cache cap, seeded month
-  order); `data.deribit`: live snapshot adapter for development.
-- `metrics`, `study.runner`, `study.report`: 5-fold cross-validation, wing and
-  next-snapshot errors, quote persistence, arbitrage shares, bootstrap intervals, Holm over
-  the 20 pairwise comparisons, exploratory calm/stress split.
-- CLI: `surfbench data tardis|deribit|status`, `surfbench fit`, `surfbench study run|report`.
-- `configs/study_synthetic.toml` and its committed results (`results/synthetic-v1/`).
 
 ### Notes
 
