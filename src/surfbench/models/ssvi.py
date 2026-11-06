@@ -6,6 +6,7 @@ Specification: ``docs/DESIGN.md`` section 4.3.2.
 ``phi(theta) = eta / (theta^gamma (1 + theta)^(1 - gamma))``. Shared ``(rho, eta, gamma)``,
 ``theta_j`` per expiry. Static-arbitrage freedom holds when ``theta_j`` is non-decreasing,
 ``gamma in (0, 1/2]`` and ``eta (1 + |rho|) <= 2``; these are asserted on every fit.
+``theta_j`` starts at the ATM quote and is then fitted jointly with the shared parameters.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ RHO_SCALE = 0.999
 U_BOUNDS = (0.01, 1.0)
 GAMMA_BOUNDS = (0.01, 0.5)
 X1_BOUND = 4.0
+THETA_MIN_RATIO = 1e-3  # lower bound on the first polished theta, relative to its anchor
 _TOL = 1e-12
 
 
@@ -110,7 +112,7 @@ class SsviModel:
         k_all = data.k
         scales = [data.scale(j) for j in range(n)]
 
-        def resid(x: Float) -> Float:
+        def resid(x: Float, theta: Float = theta) -> Float:
             rho, eta, gamma = _unpack(x)
             out = []
             for j in range(n):
@@ -134,6 +136,20 @@ class SsviModel:
                     if best is None or cost < best[0] - 1e-15:
                         best = (cost, sol.x)
         assert best is not None
+
+        def joint(y: Float) -> Float:  # theta as non-negative increments keeps it non-decreasing
+            return resid(y[:3], np.cumsum(y[3:]))
+
+        y0 = np.concatenate([best[1], np.diff(theta, prepend=0.0)])
+        y_lb = [*lb, THETA_MIN_RATIO * theta[0]] + [0.0] * (n - 1)
+        y_ub = [*ub] + [np.inf] * n
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            sol = least_squares(joint, y0, bounds=(y_lb, y_ub), method="trf", x_scale="jac")
+        cost = float(np.sum(joint(sol.x) ** 2))
+        if cost < best[0]:
+            best = (cost, sol.x[:3])
+            theta = np.cumsum(sol.x[3:])
         rho, eta, gamma = _unpack(best[1])
         check_ssvi(theta, rho, eta, gamma)
         params = {

@@ -11,8 +11,9 @@ the necessary conditions ``theta >= theta_p``, ``psi >= psi_p`` and
 ``psi / psi_p <= theta / theta_p`` or
 ``(rho_p - (psi / psi_p) rho)^2 <= (theta / theta_p - 1)(psi^2 theta_p / (psi_p^2 theta) - 1)``.
 The necessary conditions alone admit crossing slices. For each ``rho`` the fitter searches
-the parts of the necessary ``psi`` interval where either branch holds. Every accepted slice
-is checked to 1e-12.
+the parts of the necessary ``psi`` interval where either branch holds. The anchor ``theta*``
+starts at the quote nearest the money and is then fitted, so a slice has three free
+parameters. Every accepted slice is checked to 1e-12.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ RHO_GRID = np.linspace(-0.95, 0.95, 21)
 RHO_CLIP = 0.99
 PSI_MIN = 1e-10
 _N_SCAN = 33
+ANCHOR_BAND = 3.0  # anchor search half-width, in objective scales of the anchor quote
 
 
 def essvi_slice(k: Float, theta: float, rho: float, psi: float) -> tuple[Float, Float, Float]:
@@ -255,6 +257,46 @@ class EssviModel:
             return cand
         return best
 
+    def _polish_anchor(
+        self,
+        k: Float,
+        iv: Float,
+        scale: Float,
+        T: float,
+        k_star: float,
+        theta_star: float,
+        best: tuple[float, float, float],
+        prev: tuple[float, float, float] | None,
+    ) -> tuple[tuple[float, float, float], float]:
+        """Profile Brent over ``theta*`` near the anchor quote; never worse than ``best``."""
+        rho_b = best[1]
+        coarse = np.clip(np.linspace(rho_b - 0.1, rho_b + 0.1, 5), -RHO_CLIP, RHO_CLIP)
+        fine = np.clip(np.linspace(rho_b - 0.1, rho_b + 0.1, 11), -RHO_CLIP, RHO_CLIP)
+        vol = math.sqrt(theta_star / T)
+        width = ANCHOR_BAND * float(scale[int(np.argmin(np.abs(k)))])
+
+        def search(anchor: float, rhos: Float) -> tuple[float, float, float] | None:
+            loss = self._slice_loss(k, iv, scale, T, k_star, anchor)
+            return self._search(loss, rhos, k_star, anchor, prev)
+
+        def profile(anchor: float) -> float:
+            r = search(anchor, coarse)
+            return 1e300 if r is None else r[0]  # finite, so Brent arithmetic stays defined
+
+        res = minimize_scalar(
+            profile,
+            bounds=(max(vol - width, 0.5 * vol) ** 2 * T, (vol + width) ** 2 * T),
+            method="bounded",
+            options={"xatol": 1e-6 * theta_star},
+        )
+        anchor = float(res.x)
+        cand = search(anchor, fine)
+        if cand is None:
+            return best, theta_star
+        loss = self._slice_loss(k, iv, scale, T, k_star, anchor)
+        cand = self._polish_rho(loss, cand, k_star, anchor, prev)
+        return (cand, anchor) if cand[0] < best[0] else (best, theta_star)
+
     def _fit_slice(
         self,
         k: Float,
@@ -277,6 +319,9 @@ class EssviModel:
                 if best2 is not None and best2[0] < best[0]:
                     best = best2
                 best = self._polish_rho(loss, best, k_star, theta_star, prev)
+                best, theta_star = self._polish_anchor(
+                    k, iv, scale, T, k_star, theta_star, best, prev
+                )
                 _, rho, psi = best
                 theta = theta_star - rho * psi * k_star
                 cur = (theta, rho, psi)

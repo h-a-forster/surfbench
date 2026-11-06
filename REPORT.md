@@ -21,7 +21,7 @@ this report is about Deribit data or real option markets. Generated tables:
 | quotes used | BTC 5,023 and ETH 4,980 `t0` quotes in 216 slices each; every model fit every slice in every fold (0 failed slice fits) |
 | inference | 10,000 date-bootstrap resamples, 100,000 sign flips, Holm over 20 tests, seed 20261023 |
 | software | surfbench 0.1.0, Python 3.13.1, numpy 2.5.4, scipy 1.18.1 |
-| wall time | 134 s with 3 workers (371 s of unit compute; mean time per BTC unit and model for its 7 fits: SVI 3.4 s, SABR 1.7 s, eSSVI 1.4 s, SSVI 1.1 s, baseline 0.004 s). Earlier runs of the same study gave the same statistics to the printed precision: 128 s on an idle machine before the eSSVI calendar fix (section 2), and 492 s with the draft filter file (identical thresholds) while other jobs shared the CPU. |
+| wall time | 233 s with 3 workers (667 s of unit compute; mean time per BTC unit and model for its 7 fits: SVI 4.9 s, eSSVI 4.4 s, SABR 2.5 s, SSVI 1.8 s, baseline 0.006 s). SVI and SABR did not change and took 3.4 s and 1.7 s in the previous run, so part of this is CPU load. That run took 134 s, with eSSVI at 1.4 s and SSVI at 1.1 s. |
 
 The synthetic study validates the machinery; it is not evidence about markets. It shows that
 (a) every model recovers its own family to the noise floor through the whole quote pipeline,
@@ -38,23 +38,25 @@ specified model is about 0.5 to 0.6 vol point on held-out quotes.
 |---|---|---|---|---|---|---|
 | baseline | 1.48 [1.16, 1.86] | 1.39 [1.12, 1.66] | 3.55 [2.64, 4.61] | 3.2 [0.0, 7.4] | 53.7 [38.4, 68.5] | 41.1 [27.6, 55.2] |
 | raw SVI | **0.586 [0.571, 0.600]** | **0.578 [0.564, 0.594]** | 0.73 [0.66, 0.79] | 0.0 | 0.5 [0.0, 1.4] | 3.1 [1.0, 5.2] |
-| SSVI | 1.77 [1.26, 2.42] | 1.58 [1.21, 2.00] | 2.87 [1.94, 4.05] | 0.0 | 0.0 | 0.0 |
-| eSSVI | 0.780 [0.703, 0.866] | 0.709 [0.649, 0.775] | 1.17 [0.93, 1.44] | 0.0 | 0.0 | 0.0 |
+| SSVI | 1.42 [1.06, 1.88] | 1.31 [0.99, 1.68] | 2.41 [1.70, 3.31] | 0.0 | 0.0 | 0.0 |
+| eSSVI | 0.701 [0.630, 0.780] | 0.644 [0.595, 0.700] | 1.07 [0.85, 1.32] | 0.0 | 0.0 | 0.0 |
 | SABR | 0.776 [0.630, 0.977] | 0.699 [0.619, 0.793] | 1.20 [0.85, 1.65] | 0.0 | 0.0 | 0.0 |
 
-By true family (BTC, CV RMSE): each model is at the noise floor on its own family (eSSVI 0.63
+By true family (BTC, CV RMSE): each model is at the noise floor on its own family (eSSVI 0.56
 on eSSVI truths, SABR 0.55 on SABR truths, SVI 0.57 on SVI truths), and raw SVI stays at the
 floor on all three (0.57 to 0.60). SABR loses on SVI truths (1.18), eSSVI on SVI and SABR
-truths (0.88 and 0.84), and SSVI, which shares one `(rho, eta, gamma)` across all expiries
-and is not a generating family, is at 1.2 to 2.7 throughout.
+truths (0.78 and 0.77), and SSVI, which shares one `(rho, eta, gamma)` across all expiries
+and is not a generating family, is at 1.1 to 2.0 throughout.
 
-Pairwise (primary family, 20 tests, Holm): raw SVI has lower CV RMSE than eSSVI, SSVI and the
-baseline on both underlyings (mean differences -0.13 to -1.19 vol point, Holm-adjusted
-p <= 0.0006). Against SABR the difference (-0.19 BTC, -0.12 ETH) has a bootstrap interval
-that excludes zero but a Holm-adjusted p of 0.092 on both underlyings, so it is not
-significant at the family level. eSSVI and SABR are indistinguishable (+0.003 and +0.010
-vol point, p = 0.97 and 0.85). SSVI and the baseline are worse than the other three.
-P(lowest mean CV RMSE) is 1.00 for raw SVI on both underlyings.
+Pairwise (primary family, 20 tests, Holm): raw SVI has lower CV RMSE than SSVI and the
+baseline on both underlyings (mean differences -0.73 to -0.89 vol point, Holm-adjusted
+p = 0.0002). Against eSSVI (-0.12 BTC, -0.07 ETH) and SABR (-0.19 BTC, -0.12 ETH) the
+bootstrap intervals exclude zero but the Holm-adjusted p is 0.055 and 0.15 for eSSVI and
+0.11 for SABR, so neither is significant at the family level. eSSVI and SABR are
+indistinguishable (-0.08 and -0.05 vol point, p = 0.46 and 0.28). SSVI and the baseline are
+worse than the other three and indistinguishable from each other (+0.06 and +0.07 vol
+point, p = 0.76 and 0.64). P(lowest mean CV RMSE) is 1.00 and 0.99 for raw SVI on BTC and
+ETH, 0.00 and 0.01 for eSSVI.
 
 Checks of the machinery:
 
@@ -67,9 +69,9 @@ Checks of the machinery:
   This is why the price cross-check has its own column.
 - **Next snapshot.** Against quote persistence (1.03 vol points on BTC, 1.05 on ETH), the
   `t0` fits price `t1` quotes with RMSE 0.89 and 0.91 for raw SVI, 1.03 and 1.00 for SABR
-  and 1.03 and 1.01 for eSSVI, so SVI is below persistence and SABR and eSSVI are level with
+  and 0.98 and 0.96 for eSSVI, so SVI is below persistence and SABR and eSSVI are level with
   it; all these intervals overlap, and no model-against-persistence test was run. SSVI
-  (1.96, 1.81) and the baseline (1.55, 1.54) are clearly worse. With fresh noise at `t1`
+  (1.62, 1.56) and the baseline (1.55, 1.54) are clearly worse. With fresh noise at `t1`
   and a 1% level shift, persistence carries the noise of both snapshots, so any edge of the
   flexible fits is the expected smoothing effect, not forecasting skill.
 - **Intervals.** Moving-block (3-month) intervals on the primary metric are close to the
@@ -87,11 +89,30 @@ reported here is the only one with the current generator.
 eSSVI calendar fix. The eSSVI calibration first committed (before the 0.1.0 release)
 enforced only necessary calendar conditions, so it could in principle accept crossing slices
 (DESIGN section 13, item 14). After the fix (Mingone's sufficient conditions, both branches
-searched) the study was rerun from scratch on the same snapshots: every statistic above is
+searched) the study was rerun from scratch on the same snapshots: every statistic was
 unchanged to the printed precision (largest change about 1e-8 vol point), and no eSSVI fit
 on the 16 cached live Deribit snapshots changed either. A first version of the fix that
 searched only the linear branch was more conservative and raised eSSVI's CV RMSE by 0.02 to
 0.10 vol point; it was not kept.
+
+SSVI and eSSVI level fit. Earlier runs read `theta` from one ATM quote (SSVI: interpolated
+at `k = 0`; eSSVI: the quote nearest the money) and never fitted it, so that quote's noise
+set each slice's level while raw SVI and SABR fitted theirs. Both models now fit the level
+under the same no-arbitrage constraints (DESIGN 4.3.2, 4.3.3). Rerun on the same
+snapshots, baseline, SVI and SABR are unchanged and SSVI and eSSVI still show 0 diagnosed
+violations and 0 failed fits:
+
+| quantity | before | after |
+|---|---|---|
+| SSVI CV RMSE, BTC / ETH | 1.77 / 1.58 | 1.42 / 1.31 |
+| eSSVI CV RMSE, BTC / ETH | 0.780 / 0.709 | 0.701 / 0.644 |
+| eSSVI on eSSVI truths, BTC | 0.628 | 0.555 |
+| SSVI next RMSE, BTC / ETH | 1.96 / 1.81 | 1.62 / 1.56 |
+| eSSVI next RMSE, BTC / ETH | 1.03 / 1.01 | 0.98 / 0.96 |
+| SVI against eSSVI, Holm p, BTC / ETH | 0.0002 / 0.0006 | 0.055 / 0.15 |
+
+With the level fitted, SVI's lead over eSSVI is no longer significant at the family level and
+SSVI's gap is smaller. On eSSVI truths eSSVI now beats SVI (0.555 against 0.599).
 
 ## 3. The market-data study (not run)
 
@@ -167,7 +188,7 @@ summaries, so that rule is applied to Tardis data only), and 2026 market structu
   have stale wings, discrete ticks and clustered spreads, which the filter is designed for
   but the synthetic study does not exercise.
 - **Calibrator quality.** Our raw SVI (quasi-explicit plus polish) and eSSVI (Corbetta et al.
-  with an added `rho` polish, DESIGN section 13) recover their own families to below 1e-7
+  with added `rho` and anchor polishes, DESIGN sections 4.3.3 and 13) recover their own families to below 1e-7
   vol point without noise. On 60 noisy synthetic slices our SVI and SABR calibrators never
   ended above the objective found by scipy's differential evolution (largest relative gap
   1.8e-9; `results/calibrator-check/`), so they do not get stuck in visibly worse local

@@ -166,6 +166,23 @@ def test_shared_objective_ranks_own_family_first() -> None:
     assert l_svi <= l_base + 1e-12
 
 
+@pytest.mark.parametrize("name", ["ssvi", "essvi"])
+def test_atm_level_is_fitted_not_read_from_one_quote(name: str) -> None:
+    # One noisy ATM quote on the middle slice must not set that slice's level (S1).
+    T = (0.1, 0.3, 0.8)
+    truth = SsviModel.surface(T, [0.05, 0.15, 0.40], -0.3, 0.8, 0.4)
+    k = np.linspace(-0.5, 0.5, 21)
+    ivs = [np.sqrt(truth.w(j, k) / T[j]) for j in range(3)]
+    atm_true = float(np.interp(0.0, k, truth.w(1, k)))
+    ivs[1][10] += 0.01
+    atm_quote = float(ivs[1][10] ** 2 * T[1])
+    data = FitInput(T, (k, k, k), tuple(ivs), tuple(np.full(21, 0.01) for _ in T))
+    fit = get_model(name).fit(data)
+    assert fit.n_accepted == 3
+    atm_fit = float(fit.w(1, np.array([0.0]))[0])
+    assert abs(atm_fit - atm_true) < 0.2 * abs(atm_quote - atm_true)
+
+
 def test_essvi_psi_interval_hand_case() -> None:
     # rho = 0, k* = 0: psi_plus = sqrt(4 theta*), capped by 4.
     lo, hi = _psi_interval(0.0, 0.0, 0.04, None)

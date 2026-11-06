@@ -8,7 +8,7 @@ bootstrap intervals and Holm-adjusted pairwise tests.
 **All published results are synthetic.** The market-data quick study on Deribit data has not
 been run; nothing in this release is a statement about real option markets. REPORT.md
 section 3 lists what that study needs (free Tardis.dev downloads, possibly over several daily
-quota windows, and about 9 minutes of compute).
+quota windows, and about 15 minutes of compute).
 
 ## What is included
 

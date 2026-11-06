@@ -91,7 +91,7 @@ v0.1.0 is in CHANGELOG, dated 2026-10-30, and not tagged yet:
   objective; arbitrage diagnostics; quote filter, Tardis extractor and Deribit adapter;
   metrics, study runner, report and CLI. Deviations in DESIGN section 13.
 - M6 synthetic part: `configs/study_synthetic.toml`, 24 dates x 2 underlyings from
-  arbitrage-free eSSVI/SVI/SABR truths, results in `results/synthetic-v1/` (last run 134 s
+  arbitrage-free eSSVI/SVI/SABR truths, results in `results/synthetic-v1/` (last run 233 s
   on 3 workers), written up in REPORT.md sections 1-2.
 - Calibrator check against scipy differential evolution (`results/calibrator-check/`).
 - Filter v1 frozen on 2026-10-24 after 16 live snapshots (REPORT.md section 4).

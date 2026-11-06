@@ -67,12 +67,12 @@ choices:
 8. **Dependencies: numpy and scipy only** at runtime. No pandas, no parquet: snapshots are a
    few thousand rows and are stored as canonical gzip CSV with a SHA-256.
 9. **Wall time.** Compute is small (about 9 minutes for the quick study with 3
-   workers, measured; section 13 item 13). The binding constraint is the Tardis
+   workers, measured before the `theta` polish; section 13 items 13 and 18). The binding constraint is the Tardis
    free-download quota (section 5.1), so the data step is resumable month by month across
    sessions and days.
 
 Explicitly deferred: MCS (via `arch`), plots, svi-py cross-implementation comparison as a
-study, SSVI joint theta refinement, Obloj's SABR correction, beta = 0.5, intraday snapshots,
+study, Obloj's SABR correction, beta = 0.5, intraday snapshots,
 Deribit trade data, other exchanges.
 
 ## 3. Data licence and handling
@@ -230,7 +230,10 @@ Parameters: shared `(rho, eta, gamma)`; `theta_j` per expiry.
   `theta_j = max(theta*_j, theta_{j-1})` in increasing `T`.
 - Stage 2: `least_squares` over `(rho, u, gamma)` with `theta` fixed, multi-start over
   `rho in {-0.5, 0, 0.3} x u in {0.3, 0.7} x gamma in {0.25, 0.45}`.
-- Joint `theta` refinement is deferred (section 2).
+- Stage 3: `least_squares` from the stage-2 optimum over `(rho, u, gamma)` and the `theta_j`
+  jointly, with `theta_j` written as cumulative non-negative increments so it stays
+  non-decreasing. The result replaces stage 2 only if it lowers `L`. The stage-1 `theta*_j`
+  stay the inputs of the stress label (section 6).
 
 #### 4.3.3 eSSVI, slice by slice (`models.essvi`)
 
@@ -271,6 +274,11 @@ Calibration (Corbetta, Cohort, Laachir, Martini 2019), slices in increasing `T`:
 4. If no `rho` is feasible (market ATM variance below the previous slice), replace
    `theta*` by `theta_{j-1} (1 + 1e-6)`, retry once and set status `anchor_lifted`; if still
    infeasible, `failed:infeasible`.
+5. Anchor polish: bounded Brent over `theta*` within 3 objective scales (in vol) of the
+   anchor quote, profiling steps 2-3 on 5 points of `rho` around `rho_best`, then one
+   11-point refinement and the `rho` polish at the best `theta*`. Corbetta et al. keep the
+   anchor fixed; freeing it stops one noisy quote from setting the slice level while raw
+   SVI and SABR fit theirs. The result replaces the anchored fit only if it lowers `L`.
 
 Every accepted slice is asserted to satisfy the inequalities above (to 1e-12).
 
@@ -763,3 +771,9 @@ Every deviation from sections 4-7, with its reason.
     after one more `429`. `study run` exits 1 while any unit of the config has failed, also
     after its attempts are used up (it used to count such units as skipped and exit 0), and
     exits 2 only when no snapshot is ready.
+18. **SSVI and eSSVI level (4.3.2, 4.3.3).** `theta` was read from the ATM quote and never
+    fitted, so with raw SVI and SABR fitting freely the leaderboard partly measured that
+    choice. SSVI stage 3 and eSSVI step 5 now fit it under the same constraints, which
+    reverses the earlier deferral of joint `theta` refinement. Effects are in REPORT
+    section 2. The synthetic study went from 134 s to 233 s; the sizing in item 13 was not
+    remeasured.

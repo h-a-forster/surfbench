@@ -35,7 +35,7 @@ together (searched 2026-10-23; see `docs/DESIGN.md` section 12).
 > this repository is a statement about real option markets yet. The extractor has been
 > checked on three real files. The study needs the rest of the free Tardis.dev downloads
 > (projected 2-3 GB streamed but only a few MB kept, possibly over several daily quota
-> windows) and about 9 minutes of compute; see
+> windows) and about 15 minutes of compute; see
 > [The market-data study](#the-market-data-study).
 
 ## Models
@@ -44,8 +44,8 @@ together (searched 2026-10-23; see `docs/DESIGN.md` section 12).
 |---|---|---|---|
 | quadratic baseline | per expiry | `sigma(k) = c0 + c1 k + c2 k^2` | no |
 | raw SVI (Gatheral 2004), quasi-explicit calibration (Zeliade 2009) | per expiry | `a, b, rho, m, sigma` | no (Lee's bound imposed) |
-| SSVI, power-law curvature (Gatheral-Jacquier 2014) | global | `rho, eta, gamma` + ATM variance per expiry | yes |
-| eSSVI (Hendriks-Martini 2019), robust calibration (Corbetta et al. 2019) | slice by slice | `theta, rho, psi` per expiry | yes (Mingone's sufficient conditions) |
+| SSVI, power-law curvature (Gatheral-Jacquier 2014) | global | `rho, eta, gamma` + `theta` (ATM variance) per expiry, all fitted | yes |
+| eSSVI (Hendriks-Martini 2019), robust calibration (Corbetta et al. 2019) with the anchor also fitted | slice by slice | `theta, rho, psi` per expiry | yes (Mingone's sufficient conditions) |
 | SABR, Hagan et al. (2002) lognormal, `beta = 1` | per expiry | `alpha, rho, nu` | no |
 
 All models minimise `sum ((sigma_model - sigma_mid) / max(half_spread, 0.5 vol pt))^2` on the
@@ -94,10 +94,10 @@ uv run surfbench fit cache/synthetic-v1/2024-01-01/snap_t0.csv.gz --underlying B
 BTC: 9 slices, 211 quotes; filter counts {'input': 484, ..., 'slice': 211}
 model      fit RMSE   bfly    cal  failed    time
 baseline     0.999v   0/9    1/8        0   0.00s
-svi          0.431v   0/9    0/8        0   0.90s
-ssvi         1.251v   0/9    0/8        0   0.43s
-essvi        0.542v   0/9    0/8        0   0.45s
-sabr         0.515v   0/9    0/8        0   0.82s
+svi          0.431v   0/9    0/8        0   0.24s
+ssvi         1.163v   0/9    0/8        0   0.16s
+essvi        0.463v   0/9    0/8        0   0.44s
+sabr         0.515v   0/9    0/8        0   0.27s
 (fit RMSE in vol points on all filtered quotes; bfly = wide-grid butterfly)
 ```
 
@@ -141,9 +141,10 @@ a dozen files, the server answered `429` with a 24-hour `Retry-After`. The extra
 the lock in
 `cache/tardis/_quota.json`, makes no request until it expires, and fetches months in a seeded
 random order so that a partial download is a random subset rather than a chronological
-prefix. Compute is about 30 seconds per (date, underlying) unit on one core (measured on 4 live
-Deribit units), so the quick study runs in about 9 minutes and the full study in about 30
-minutes with 3 workers once the data is cached.
+prefix. Compute was about 30 seconds per (date, underlying) unit on one core (measured on 4 live
+Deribit units) before SSVI and eSSVI fitted their ATM level, which took the synthetic study
+from 134 s to 233 s. Scaling by that, not measured on Deribit units, the quick study needs
+about 15 minutes and the full study about 50 minutes with 3 workers once the data is cached.
 
 **Data licence.** Tardis.dev and Deribit data are licensed for research and personal use;
 redistribution, including manipulated or subsampled data, is not allowed. This repository
