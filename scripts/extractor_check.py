@@ -35,7 +35,6 @@ def main() -> None:
         if meta.get("status") == "ok":
             snap = read_snapshot(meta_p.parent / "snap_t0.csv.gz")
             row["snapshot_bytes"] = sum(p.stat().st_size for p in meta_p.parent.glob("snap_*"))
-            row["snapshot_bytes"] = sum(p.stat().st_size for p in meta_p.parent.glob("snap_*"))
             row["data_quality"] = {
                 und: data_quality(snap, apply_filter(snap, und, filt)) for und in filt.underlyings
             }

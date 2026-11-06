@@ -78,7 +78,8 @@ uv run surfbench study report --config configs/study_quick.toml
 ```
 
 Full size: the same with `configs/study_full.toml` (91 months, 60-minute horizon; compute
-about 30 minutes, download projected 15-30 GB over many quota windows). Watch
+about 30 minutes, download projected 15-30 GB over many quota windows, snapshots in
+`cache/tardis-60m/` because they depend on the horizon). Watch
 `runs/<name>/progress.log` for stalls.
 
 ## Status
@@ -95,5 +96,5 @@ v0.1.0 is in CHANGELOG, dated 2026-10-30, and not tagged yet:
 - Calibrator check against scipy differential evolution (`results/calibrator-check/`).
 - Filter v1 frozen on 2026-10-24 after 16 live snapshots (REPORT.md section 4).
 - Extractor checked on three real files (`results/extractor-check/`); their snapshots sit in
-  `cache/tardis/` and count towards the quick study. No market-data result exists: docs and
-  release notes state that every published result is synthetic.
+  `cache/tardis/`, and 2020-01 and 2026-10 count towards the quick study. No market-data
+  result exists: docs and release notes state that every published result is synthetic.

@@ -77,9 +77,9 @@ Deribit trade data, other exchanges.
 
 ## 3. Data licence and handling
 
-- **Tardis.dev terms** (docs.tardis.dev/legal/terms-of-service, read 2026-10-23): data,
-  including free sample data, is licensed for internal, research, educational or personal
-  use. Redistribution of data or "Manipulated Data" is prohibited (clause 9.2). "Derived
+- **Tardis.dev terms** (docs.tardis.dev/legal/terms-of-service, last modified 2026-10-28, read
+  2026-11-06): data, including free sample data, is licensed for internal, research,
+  educational or personal use. Redistribution of data or "Manipulated Data" is prohibited (clause 9.2). "Derived
   Data" that does not expose raw records may appear in charts, statistics, research reports
   and papers, but not as a dataset, feed or API (clause 9.3).
 - **Deribit terms** (2021 update, article 4.6) restrict market data and derived data to
@@ -482,8 +482,10 @@ returned `ok` or `anchor_lifted`; failure counts are reported per model.
 | compute | about 9 min with 3 workers (measured) | about 30 min with 3 workers (measured) |
 
 Timings were measured at M5 and written into the config headers. Quick study: `uv run
-surfbench study run --config configs/study_quick.toml --workers 3`. Full: the same with `configs/study_full.toml`. Both
-resume from `runs/<name>/units/`; downloads resume from `cache/tardis/`.
+surfbench study run --config configs/study_quick.toml --workers 3`. Full: the same with
+`configs/study_full.toml`. Both resume from `runs/<name>/units/`; downloads resume from
+`cache/tardis/` (quick) and `cache/tardis-60m/` (full), since a snapshot pair belongs to one
+horizon.
 
 ## 7. Validation strategy
 
@@ -753,3 +755,11 @@ Every deviation from sections 4-7, with its reason.
     report` refuses a run without finished units, and `summary.json` holds `null` rather
     than `NaN`. M6 is open: v0.1.0 carries the synthetic study, and the market-data quick
     study and `results/quick-v1/` are still to come.
+17. **Horizon and run status (5.1, 6.2).** The quick and full studies shared `cache/tardis/`,
+    so with a quick-study month cached the full study read 15-minute snapshots while
+    reporting a 60-minute horizon. The full study now has its own cache directory, and the
+    runner lists a Tardis month whose stored `t0` or `t1` differs from the config as missing.
+    `_quota.json` sits in each cache directory, so a lock is seen by the other study only
+    after one more `429`. `study run` exits 1 while any unit of the config has failed, also
+    after its attempts are used up (it used to count such units as skipped and exit 0), and
+    exits 2 only when no snapshot is ready.

@@ -43,8 +43,8 @@ specified model is about 0.5 to 0.6 vol point on held-out quotes.
 | SABR | 0.776 [0.630, 0.977] | 0.699 [0.619, 0.793] | 1.20 [0.85, 1.65] | 0.0 | 0.0 | 0.0 |
 
 By true family (BTC, CV RMSE): each model is at the noise floor on its own family (eSSVI 0.63
-on eSSVI truths, SABR 0.55 on SABR truths, SVI 0.58 on SVI truths), and raw SVI stays at the
-floor on all three (0.58 to 0.60). SABR loses on SVI truths (1.18), eSSVI on SVI and SABR
+on eSSVI truths, SABR 0.55 on SABR truths, SVI 0.57 on SVI truths), and raw SVI stays at the
+floor on all three (0.57 to 0.60). SABR loses on SVI truths (1.18), eSSVI on SVI and SABR
 truths (0.88 and 0.84), and SSVI, which shares one `(rho, eta, gamma)` across all expiries
 and is not a generating family, is at 1.2 to 2.7 throughout.
 
@@ -114,8 +114,9 @@ What running it needs:
   projected 2-3 GB in total, fetched at most 12 files per session (`max_requests_per_session`)
   and stopped by the first `429`, so it may take several daily quota windows. Only the
   extracted snapshots are kept (tens of KB each, capped at 2 GB in `cache/tardis/`).
-  `surfbench data status` shows which months are done, unavailable or pending; the three
-  files above already count.
+  `surfbench data status` shows which months are done, unavailable or pending; 2020-01 and
+  2026-10 above already count (2019-04 is not a quick-study month, and the full study keeps
+  its own 60-minute snapshots).
 - **Usable dates.** If fewer than 12 dates are usable, the results are to be reported
   descriptively only (DESIGN section 10).
 - **Compute.** About 9 minutes with 3 workers (measured below); results go to
@@ -125,8 +126,8 @@ What running it needs:
 Measured compute on real data: four units from two live Deribit snapshot pairs of
 2026-10-23 (about 300 filtered quotes in 10 expiries per underlying) took 21 to 43 seconds
 each (mean 29 s, one worker on a shared machine), so the quick study should take about 9
-minutes and the full study about 30 minutes with 3 workers. Following the data-licence policy (DESIGN section 3), no error or arbitrage
-statistic from live snapshots is published.
+minutes and the full study about 30 minutes with 3 workers. Following the data-licence policy
+(DESIGN section 3), no error or arbitrage statistic from live snapshots is published.
 
 ## 4. The quote filter
 
@@ -178,5 +179,6 @@ summaries, so that rule is applied to Tardis data only), and 2026 market structu
   secondary, unadjusted estimate.
 - **Licence.** Only aggregate statistics may be published from the market-data study. Apart
   from timings and one repricing check (DESIGN section 4), the quote counts of section 4 are
-  the only statistics from live Deribit data in this repository. The owner's review of the
-  Tardis.dev and Deribit terms is still open.
+  the only statistics from live Deribit data in this repository; the extractor check of
+  section 3 adds download metadata and two data-quality medians from Tardis.dev files. The
+  owner's review of the Tardis.dev and Deribit terms is still open.

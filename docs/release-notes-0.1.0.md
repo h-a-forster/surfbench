@@ -40,11 +40,16 @@ on dropped connections. Details in CHANGELOG.md.
 - The summary and leaderboard report the data-quality diagnostics and per-step filter counts,
   which were only in the uncommitted unit files. `results/synthetic-v1/` was regenerated from
   the same units; every other number is unchanged.
-- `study run` says how many dates are missing and exits with 2 when no snapshot exists;
-  `study report` refuses a run without finished units instead of writing an empty
-  leaderboard; `summary.json` is strict JSON (`null`, not `NaN`).
+- `study run` says how many dates are missing and why, exits with 1 while any unit has failed
+  (also after its attempts are used up) and with 2 when no snapshot exists; `study report`
+  refuses a run without finished units instead of writing an empty leaderboard;
+  `summary.json` is strict JSON (`null`, not `NaN`).
+- The full study keeps its snapshots in `cache/tardis-60m/`, and the runner refuses Tardis
+  snapshots whose times differ from the config. Before, a month cached by the quick study
+  would have entered the full study labelled 60-minute although its `t1` was 15 minutes on.
 - Removed the unused `plot` extra and leftover CLI scaffolding. The source distribution now
-  includes the documents the README links to and the committed results.
+  includes the documents the README links to and the committed results. The build requires
+  hatchling 1.26, the first version that reads `license-files` as an array.
 - CI: actions pinned to commit SHAs, checkout credentials not persisted.
 
 ## Requirements

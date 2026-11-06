@@ -197,6 +197,64 @@ def test_missing_tardis_months_are_reported(tmp_path: Path) -> None:
     assert {m["reason"] for m in missing} == {"not downloaded"}
 
 
+def test_tardis_snapshots_of_another_horizon_are_refused(tmp_path: Path) -> None:
+    from surfbench.study.runner import _month_t0, discover_units
+
+    quick = load_study(ROOT / "configs" / "study_quick.toml", root=tmp_path)
+    cfg = load_study(ROOT / "configs" / "study_full.toml", root=tmp_path)
+    assert quick.cache_dir != cfg.cache_dir  # snapshots are specific to the horizon
+    (tmp_path / "configs").mkdir()
+    (tmp_path / "configs" / "filter_v1.toml").write_bytes(
+        (ROOT / "configs" / "filter_v1.toml").read_bytes()
+    )
+
+    def cache_month(horizon_min: int) -> list[tuple[str, dict]]:
+        t0 = _month_t0("2026-10", "00:01:00")
+        meta = {"status": "ok", "t0_us": t0, "t1_us": t0 + horizon_min * 60_000_000}
+        d = cfg.cache_dir / "2026-10-01"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "snap_t1.csv.gz").touch()
+        (d / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        units, missing = discover_units(cfg)
+        return units, [m for m in missing if m["date"] == "2026-10-01"]
+
+    units, missing = cache_month(15)  # extracted for the quick study, read by the full one
+    assert units == []
+    assert missing == [{"date": "2026-10-01", "reason": "snapshot times differ from the config"}]
+    units, missing = cache_month(60)
+    assert len(units) == 2 and missing == []
+
+
+def test_exhausted_error_units_keep_failing_the_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from surfbench.checkpoint import MAX_ATTEMPTS, UnitStore
+
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    assert main(["study", "run", "--config", str(cfg_path)]) == 0
+    store = UnitStore(tmp_path / "run")
+    rec = {"unit_id": "2024-01-01_ETH", "status": "error", "attempts": MAX_ATTEMPTS, "error": "x"}
+    store.write("2024-01-01_ETH", rec)
+    capsys.readouterr()
+    assert main(["study", "run", "--config", str(cfg_path)]) == 1  # skipped, but not done
+    assert "2024-01-01_ETH" in capsys.readouterr().err
+
+
+def test_limit_with_nothing_left_is_not_a_missing_download(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cfg_path = _config(tmp_path, ["2024-01", "2024-02"], ["baseline"])
+    assert main(["study", "run", "--config", str(cfg_path)]) == 0
+    meta_p = tmp_path / "cache" / "2024-02-01" / "meta.json"
+    meta = json.loads(meta_p.read_text(encoding="utf-8"))
+    meta_p.write_text(json.dumps({**meta, "status": "invalid"}), encoding="utf-8")
+    capsys.readouterr()
+    assert main(["study", "run", "--config", str(cfg_path), "--limit", "5"]) == 0
+    captured = capsys.readouterr()
+    assert "dates missing: 1 (invalid: 1)" in captured.out
+    assert "no snapshots" not in captured.err
+
+
 # ----------------------------------------------------------------- end to end (slow)
 @pytest.mark.slow
 def test_six_month_synthetic_study_all_models(tmp_path: Path) -> None:

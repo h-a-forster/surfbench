@@ -263,6 +263,13 @@ def discover_units(cfg: StudyConfig) -> tuple[list[tuple[str, dict[str, Any]]], 
         if not (d / "snap_t1.csv.gz").exists():
             missing.append({"date": label, "reason": "no t1 snapshot"})
             continue
+        if cfg.source == "tardis":
+            data = cfg.raw["data"]
+            t0 = _month_t0(label[:7], str(data.get("t0", "00:01:00")))
+            t1 = t0 + int(round(float(data["horizon_min"]) * 60e6))
+            if (meta.get("t0_us"), meta.get("t1_us")) != (t0, t1):
+                missing.append({"date": label, "reason": "snapshot times differ from the config"})
+                continue
         for und in filt.underlyings:
             uid = f"{label}_{und}"
             units.append(
@@ -533,6 +540,7 @@ def run_study(
                 raise RunMismatchError(
                     f"snapshot of {uid} changed since it was run; use --force-new"
                 )
+    ready = [uid for uid, _ in units]
     if limit is not None:
         pending = [(uid, task) for uid, task in units if not store.is_final(uid)]
         units = pending[: max(0, int(limit))]
@@ -553,6 +561,8 @@ def run_study(
         info_p,
         {
             "missing": missing,
+            "n_ready": len(ready),
+            "units_failed": [u for u in ready if (store.read(u) or {}).get("status") == "error"],
             "n_units": len(units),
             "last_run_wall_s": elapsed if ran else prev.get("last_run_wall_s", elapsed),
             "total_run_wall_s": float(prev.get("total_run_wall_s", 0.0))

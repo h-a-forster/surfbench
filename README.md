@@ -74,7 +74,8 @@ uv run pytest
 
 ## Quick start
 
-Run the synthetic validation study (no download; 2 to 8 minutes on 3 worker processes):
+From a clone, run the synthetic validation study (no download; 2 to 8 minutes on 3 worker
+processes):
 
 ```sh
 uv run surfbench study run    --config configs/study_synthetic.toml --workers 3
@@ -134,7 +135,8 @@ uv run surfbench study report --config configs/study_quick.toml
 
 The quick study covers 28 quarterly dates (January, April, July and October 2020-2026) with
 a 15-minute horizon; `configs/study_full.toml` covers every month from 2019-04 with a
-60-minute horizon. The free download quota is undocumented: during development, after about
+60-minute horizon and keeps its snapshots apart (`cache/tardis-60m/`), because a snapshot pair
+is specific to its horizon. The free download quota is undocumented: during development, after about
 a dozen files, the server answered `429` with a 24-hour `Retry-After`. The extractor records
 the lock in
 `cache/tardis/_quota.json`, makes no request until it expires, and fetches months in a seeded
@@ -190,7 +192,6 @@ study you download the data yourself under the provider's terms.
   and every deviation from the original plan (section 13).
 - [REPORT.md](REPORT.md): what has been run, with numbers, intervals and limitations.
 - [AGENTS.md](AGENTS.md): conventions, architecture map and current status.
-- [backlog.md](backlog.md): open work.
 - [backlog.md](backlog.md): open work.
 
 ## Citation

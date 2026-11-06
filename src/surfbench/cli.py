@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import tomllib
+from collections import Counter
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -121,12 +122,15 @@ def cmd_study_run(args: argparse.Namespace) -> int:
     )
     print(f"units: ok {counts['ok']}, error {counts['error']}, skipped {counts['skipped']}")
     info_path = load_study(args.config).out_dir / "run_info.json"
-    n_missing = len(json.loads(info_path.read_text(encoding="utf-8"))["missing"])
-    if n_missing:
-        print(f"dates missing: {n_missing} (`surfbench data status` lists them)")
-    if counts["error"]:
+    info = json.loads(info_path.read_text(encoding="utf-8"))
+    reasons = Counter(m["reason"] for m in info["missing"])
+    if reasons:
+        detail = ", ".join(f"{reason}: {n}" for reason, n in sorted(reasons.items()))
+        print(f"dates missing: {sum(reasons.values())} ({detail})")
+    if info["units_failed"]:
+        print(f"surfbench: failed units: {', '.join(info['units_failed'])}", file=sys.stderr)
         return 1
-    if n_missing and not any(counts.values()):
+    if not info["n_ready"]:
         print("surfbench: no snapshots to run; download them first", file=sys.stderr)
         return 2
     return 0
