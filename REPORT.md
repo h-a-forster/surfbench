@@ -1,6 +1,6 @@
 # surfbench report
 
-Status on 2026-10-30 (v0.1.0): the full pipeline has been implemented, tested and run end to
+Status on 2026-11-06 (v0.1.0): the full pipeline has been implemented, tested and run end to
 end on a **synthetic** validation study. **Every result in this report is synthetic.** The
 market-data quick study has not been run (section 3 lists what it needs), so no statement in
 this report is about Deribit data or real option markets. Generated tables:
@@ -99,16 +99,23 @@ Plan: `configs/study_quick.toml`, 28 quarterly first-of-month dates (2020-01 to 
 BTC and ETH, `t0 = 00:01 UTC`, 15-minute horizon, pre-registered filter v1; commands in
 README.md. It has not been run as of this report. During development the free Tardis.dev
 download answered every request with `429` and a `Retry-After` of about 24 hours after
-about a dozen research requests (2026-10-23, around 21:45 UTC). The extractor is tested
-offline only; its first real run will also be the first check of the 2019-2020 file layout.
+about a dozen research requests (2026-10-23, around 21:45 UTC).
+
+The extractor has since run on three real files (2026-11-06; `results/extractor-check/`):
+2019-04, 2020-01 and 2026-10 all parsed with the documented layout, with no `429`, streaming
+4.2, 5.2 and 157 MB. Our bid IVs are within a median 0.002 to 0.004 vol point of the
+provider's and the put-call-parity forward within a median 0.02% to 0.25% of the forward
+used, per month and underlying. These are checks of the data path; no model result from
+these files is published.
 
 What running it needs:
 
 - **Downloads.** The free first-of-month files, streamed for `h + 1 = 16` minutes each:
   projected 2-3 GB in total, fetched at most 12 files per session (`max_requests_per_session`)
-  and stopped by the first `429`, so expect several daily quota windows. Only the
-  extracted snapshots are kept (a few hundred KB each, capped at 2 GB in `cache/tardis/`).
-  `surfbench data status` shows which months are done, unavailable or pending.
+  and stopped by the first `429`, so it may take several daily quota windows. Only the
+  extracted snapshots are kept (tens of KB each, capped at 2 GB in `cache/tardis/`).
+  `surfbench data status` shows which months are done, unavailable or pending; the three
+  files above already count.
 - **Usable dates.** If fewer than 12 dates are usable, the results are to be reported
   descriptively only (DESIGN section 10).
 - **Compute.** About 9 minutes with 3 workers (measured below); results go to
@@ -125,8 +132,9 @@ statistic from live snapshots is published.
 
 `configs/filter_v1.toml` was **frozen on 2026-10-24 with the draft thresholds unchanged**. The
 review used 16 live Deribit API snapshots (BTC and ETH, a `t0`/`t1` pair every 30 minutes from
-2026-10-23 22:09 to 2026-10-24 01:54 UTC, about four hours of one night) and no Tardis study
-month. Aggregate counts per snapshot and underlying (BTC and ETH pooled):
+2026-10-23 22:09 to 2026-10-24 01:54 UTC, about four hours of one night) and no Tardis data.
+The 2026-10-01 file, a quick-study month, was streamed before the freeze only to measure its
+layout (DESIGN section 5.1). Aggregate counts per snapshot and underlying (BTC and ETH pooled):
 
 | variant | mean kept quotes (min) | kept expiries |
 |---|---|---|
@@ -147,7 +155,7 @@ spread, than the kept quotes did, which supports keeping both rules. Nothing arg
 change, so the draft was frozen as it stood. Limits of the review: one night of one season,
 live API summaries rather than the Tardis files (quote age cannot be checked on live
 summaries, so that rule is applied to Tardis data only), and 2026 market structure; the
-2020 chains are thinner, which the per-step counts in each unit file will show.
+2020 chains are thinner, which the per-step counts in the leaderboard will show.
 
 ## 5. Limitations
 
@@ -168,5 +176,7 @@ summaries, so that rule is applied to Tardis data only), and 2026 market structu
 - **Next-snapshot horizon.** 15 minutes measures stability, not forecasting skill.
 - **Multiple testing** covers only the 20 primary comparisons; every other number is a
   secondary, unadjusted estimate.
-- **Licence.** Only aggregate statistics may be published from the market-data study; the
-  owner should re-read the Tardis.dev and Deribit terms before any public release.
+- **Licence.** Only aggregate statistics may be published from the market-data study. Apart
+  from timings and one repricing check (DESIGN section 4), the quote counts of section 4 are
+  the only statistics from live Deribit data in this repository. The owner's review of the
+  Tardis.dev and Deribit terms is still open.

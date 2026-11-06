@@ -106,6 +106,11 @@ def test_synthetic_end_to_end_resume_and_report(tmp_path: Path) -> None:
     )
     assert viol == 0  # SSVI is arbitrage-free by construction
     assert len(summary["pairwise_primary"]) == 2 and "p_holm" in summary["pairwise_primary"][0]
+    dq = summary["by_underlying"]["BTC"]["data_quality"]
+    assert dq["filter_counts_t0"]["slice"] == sum(u["n_quotes"] for u in units)
+    gaps = [u["data_quality"]["median_abs_bid_iv_diff_volpt"] for u in units]
+    assert dq["median_abs_bid_iv_diff_volpt"] == pytest.approx(np.median(gaps), rel=1e-12)
+    assert "Data quality" in board
     # Nothing absolute or quote-level in the committed artefacts.
     text = (out / "summary.json").read_text(encoding="utf-8") + board
     assert str(tmp_path) not in text and tmp_path.as_posix() not in text
@@ -133,6 +138,45 @@ def test_cli_fit_and_study(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     out = capsys.readouterr().out
     assert "units: ok 2" in out and "essvi" in out and "fit RMSE" in out
     assert main(["data", "status", "--config", str(cfg_path)]) == 0
+
+
+def test_summary_is_strict_json_when_a_regime_is_empty(tmp_path: Path) -> None:
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])  # one date: no calm dates
+    run_study(cfg_path)
+    text = (write_report(cfg_path) / "summary.json").read_text(encoding="utf-8")
+
+    def reject(token: str) -> None:
+        raise AssertionError(f"{token} in summary.json")
+
+    summary = json.loads(text, parse_constant=reject)
+    assert summary["by_underlying"]["BTC"]["by_regime"]["calm"]["baseline"]["estimate"] is None
+
+
+def test_study_without_snapshots_fails_loudly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import shutil
+
+    shutil.copytree(ROOT / "configs", tmp_path / "configs")
+    monkeypatch.chdir(tmp_path)
+    args = ["--config", "configs/study_quick.toml"]
+    assert main(["study", "run", *args]) == 2
+    assert "dates missing: 28" in capsys.readouterr().out
+    assert main(["study", "report", *args]) == 2  # no hollow leaderboard either
+    assert not (tmp_path / "results").exists()
+
+
+def test_live_snapshot_without_t1_gets_a_reason(tmp_path: Path) -> None:
+    from surfbench.study.runner import discover_units
+
+    cfg_path = _config(tmp_path, ["2024-01"], ["baseline"])
+    _edit_config(cfg_path, 'source = "synthetic"', 'source = "deribit"')
+    stamp = tmp_path / "cache" / "20261106T182240Z"
+    stamp.mkdir(parents=True)
+    (stamp / "meta.json").write_text('{"status": "ok"}', encoding="utf-8")
+    units, missing = discover_units(load_study(cfg_path))
+    assert units == []
+    assert missing == [{"date": stamp.name, "reason": "no t1 snapshot"}]
 
 
 def test_load_study_resolves_relative_paths(tmp_path: Path) -> None:

@@ -257,8 +257,11 @@ def discover_units(cfg: StudyConfig) -> tuple[list[tuple[str, dict[str, Any]]], 
             missing.append({"date": label, "reason": "not downloaded"})
             continue
         meta = json.loads(meta_p.read_text(encoding="utf-8"))
-        if meta.get("status") != "ok" or not (d / "snap_t1.csv.gz").exists():
+        if meta.get("status") != "ok":
             missing.append({"date": label, "reason": str(meta.get("status", "unknown"))})
+            continue
+        if not (d / "snap_t1.csv.gz").exists():
+            missing.append({"date": label, "reason": "no t1 snapshot"})
             continue
         for und in filt.underlyings:
             uid = f"{label}_{und}"

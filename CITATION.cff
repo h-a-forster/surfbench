@@ -10,6 +10,7 @@ type: software
 authors:
   - name: surfbench contributors
 license: MIT
+repository-code: https://github.com/h-a-forster/surfbench
 version: 0.1.0
 keywords:
   - implied volatility

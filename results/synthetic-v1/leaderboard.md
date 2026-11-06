@@ -30,6 +30,8 @@ CV RMSE by true generating family (synthetic data):
 | essvi | 0.628 [0.617, 0.641] | 0.835 [0.679, 1.026] | 0.876 [0.760, 1.003] |
 | sabr | 0.595 [0.569, 0.621] | 0.552 [0.533, 0.575] | 1.182 [0.847, 1.628] |
 
+Data quality (medians over dates): our bid IV against the provider's, 0.0000 vol points; put-call-parity forward against the forward used, 0.00e+00 relative gap; filtered `t0` quotes still filtered at `t1`, 98.3%. Quotes left after each filter step at `t0`, summed over dates: input 11830, symbol 11830, age 11830, two_sided 11712, forward 11712, expiry_window 10710, otm 5324, iv 5023, slice 5023.
+
 Exploratory regimes (stress = BTC 30-day ATM IV in the top quartile): 18 calm, 6 stress dates. CV RMSE by regime:
 
 | model | calm | stress |
@@ -65,6 +67,8 @@ CV RMSE by true generating family (synthetic data):
 | ssvi | 1.614 [0.878, 2.499] | 1.926 [1.155, 2.741] | 1.185 [1.060, 1.312] |
 | essvi | 0.598 [0.580, 0.616] | 0.797 [0.675, 0.926] | 0.731 [0.644, 0.833] |
 | sabr | 0.653 [0.575, 0.758] | 0.540 [0.528, 0.552] | 0.903 [0.747, 1.073] |
+
+Data quality (medians over dates): our bid IV against the provider's, 0.0000 vol points; put-call-parity forward against the forward used, 0.00e+00 relative gap; filtered `t0` quotes still filtered at `t1`, 98.4%. Quotes left after each filter step at `t0`, summed over dates: input 11926, symbol 11926, age 11926, two_sided 11831, forward 11831, expiry_window 10737, otm 5345, iv 4980, slice 4980.
 
 Exploratory regimes (stress = BTC 30-day ATM IV in the top quartile): 18 calm, 6 stress dates. CV RMSE by regime:
 

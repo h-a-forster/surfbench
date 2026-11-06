@@ -1,6 +1,6 @@
 # surfbench design
 
-Status: implemented in v0.1.0 (released 2026-10-30). This document is the specification for v0.1.
+Status: implemented in v0.1.0 (not tagged yet). This document is the specification for v0.1.
 Formulas, constraints, reference values and done-checks here are binding for the
 implementation; deviations go in section 13 with a reason.
 
@@ -34,10 +34,9 @@ until proven otherwise.
 intraday behaviour (one snapshot pair per month at 00:01 UTC), no claim that a model is
 "best" beyond the measured metrics and the pre-registered filter.
 
-## 2. Scope review (decisions taken at scaffold time)
+## 2. Scope decisions
 
-The idea as first written (SVI, SSVI, eSSVI, SABR, GP and arbitrage-penalised nets, stress
-months, next-snapshot error) does not fit about 4-5 hours of implementation. Cuts and
+Gaussian processes and arbitrage-penalised nets were considered and left out. Cuts and
 choices:
 
 1. **Models: SVI, SSVI, eSSVI, SABR (beta = 1) and a quadratic baseline.** GP and neural
@@ -67,7 +66,7 @@ choices:
    month is the independent unit. Inference is on paired month-level differences.
 8. **Dependencies: numpy and scipy only** at runtime. No pandas, no parquet: snapshots are a
    few thousand rows and are stored as canonical gzip CSV with a SHA-256.
-9. **Wall-time budget.** Compute is small (about 9 minutes for the quick study with 3
+9. **Wall time.** Compute is small (about 9 minutes for the quick study with 3
    workers, measured; section 13 item 13). The binding constraint is the Tardis
    free-download quota (section 5.1), so the data step is resumable month by month across
    sessions and days.
@@ -91,9 +90,11 @@ Deribit trade data, other exchanges.
   and MD5, bytes streamed, SHA-256 of each extracted snapshot file), and aggregate error and
   arbitrage statistics (per month and pooled) plus calm/stress labels. Tests use synthetic
   data only. Live Deribit API snapshots are used for development and for freezing the
-  filter, and no results computed from them are committed.
-- Before public release, the owner re-reads both terms; if in doubt, publish only pooled
-  statistics.
+  filter. From them only timings, the repricing check of section 4 and the aggregate quote
+  counts of the filter review (REPORT section 4) are committed: no model-fit error, arbitrage
+  or IV-level statistic.
+- The owner reviews both terms before market-data results are published; if in doubt,
+  publish only pooled statistics.
 
 ## 4. Conventions and module specifications
 
@@ -342,7 +343,9 @@ Measured on 2026-10-23 (file of 2026-10-01): size 17,932,604,919 bytes (`x-datas
 header; an `x-md5` header is also sent); rows strictly ordered by `local_timestamp` (0
 inversions in the first 13.4 M rows); all 948 BTC inverse instruments appear within 0.7 s of
 midnight (state dump); the first 70 minutes are 687 MB compressed, about 10 MB per minute;
-streaming ran at about 7 MB/s.
+streaming ran at about 7 MB/s. Measured on 2026-11-06 with the extractor, for
+`h = 15` min: 157 MB for 2026-10, 5.2 MB for 2020-01 and 4.2 MB for 2019-04, same layout in
+all three (`scripts/extractor_check.py`, `results/extractor-check/`).
 
 Observed server behaviour: `HEAD` returns 404 and ranged `GET` returns 403 (Cloudflare), so
 the extractor uses plain `GET` only and never `Range`. After about a dozen requests and
@@ -368,8 +371,8 @@ Extractor algorithm (one month):
    order, gzip `mtime = 0`) and `meta.json` (URL, headers above, bytes streamed, rows read,
    instrument counts at `t0` and `t1`, SHA-256 of each snapshot file, package version)
    atomically (temp file + `os.replace`) under `cache/tardis/YYYY-MM-01/`.
-7. Refuse to write if the cache exceeds `cache_cap_gb` (2 GB; snapshots are a few hundred KB,
-   so this is a guard, not a budget).
+7. Refuse to write if the cache exceeds `cache_cap_gb` (2 GB; snapshots are tens of KB, so
+   this is a guard, not a budget).
 
 Months are processed in a seeded random order (`fetch_order_seed`), at most
 `max_requests_per_session` requests with `request_gap_s` between them, so a quota stop
@@ -387,8 +390,9 @@ second call after `--horizon-min` minutes gives a `t1` snapshot.
 
 `configs/filter_v1.toml` is the filter (frozen on 2026-10-24, see CHANGELOG). It was
 provisional until M4, when its thresholds were
-frozen using live Deribit snapshots only (several hours of the day, never Tardis study
-months); the freeze date goes in CHANGELOG. Steps, in order, with counts recorded per step:
+frozen using live Deribit snapshots only (several hours of the day). No quote of a Tardis
+study month was used; the layout of one was measured (section 5.1). The freeze date goes in
+CHANGELOG. Steps, in order, with counts recorded per step:
 
 1. Symbol regex (inverse BTC/ETH only), quote age `t - timestamp <= 300 s`.
 2. Two-sided: `0 < bid < ask`; `bid >= 0.0002` coin.
@@ -461,7 +465,8 @@ returned `ok` or `anchor_lifted`; failure counts are reported per model.
   no significance claims.
 - Report contents: months used and missing (with reason), unit counts, slice and quote counts
   per model, seeds, package and dependency versions, filter version and hash, snapshot
-  SHA-256s, wall time. Committed under `results/<name>/` as `summary.json` and
+  SHA-256s, wall time, and the data-quality medians and per-step filter counts of section 5.3.
+  Committed under `results/<name>/` as `summary.json` and
   `leaderboard.md`, with no absolute paths. `REPORT.md` is written by hand from them.
 
 ### 6.5 Sizing and wall time
@@ -472,13 +477,12 @@ returned `ok` or `anchor_lifted`; failure counts are reported per model.
 | horizon `h` | 15 min | 60 min |
 | units | 56 | about 182 |
 | fits per unit | 5 models x 7 (5 folds, wing, full) | same |
-| stream per month | about 170 MB late 2026, less earlier (projection) | about 640 MB late 2026 |
+| stream per month | 157 MB for 2026-10, 5.2 MB for 2020-01 (measured) | about 640 MB late 2026 (projection) |
 | download total | projected 2-3 GB | projected 15-30 GB |
 | compute | about 9 min with 3 workers (measured) | about 30 min with 3 workers (measured) |
 
-Projections are replaced by measurements at M5 (timing of 3 real units) and written into
-the config headers. Quick study: `uv run surfbench study run --config
-configs/study_quick.toml --workers 3`. Full: the same with `configs/study_full.toml`. Both
+Timings were measured at M5 and written into the config headers. Quick study: `uv run
+surfbench study run --config configs/study_quick.toml --workers 3`. Full: the same with `configs/study_full.toml`. Both
 resume from `runs/<name>/units/`; downloads resume from `cache/tardis/`.
 
 ## 7. Validation strategy
@@ -537,11 +541,10 @@ touches the network.
 
 ### 7.5 Third-party cross-checks and bug claims
 
-`scripts/oracles/` (M2, optional, Python 3.13): run with
-`uv run --no-project --with QuantLib==1.44 --with svi-py==1.0.0 python scripts/oracles/make_oracles.py`
-to write `tests/fixtures/oracles/*.json` (model evaluations on fixed parameters). Tests read
-only the JSON. Before calling any third-party result a bug: a minimal repro script, a
-check of parameter conventions (total versus implied variance, `psi` versus `phi`, `beta`,
+Oracle fixtures from QuantLib and svi-py (model evaluations on fixed parameters, stored as
+JSON that the tests read) are optional and have not been built; the QuantLib agreement in
+section 7.1 was a manual check. Before calling any third-party result a bug: a minimal
+repro script, a check of parameter conventions (total versus implied variance, `psi` versus `phi`, `beta`,
 time units), and agreement of our value with the independent reference script.
 
 ## 8. Architecture
@@ -575,18 +578,17 @@ configs/*.toml ──> cli ──> data.tardis / data.deribit ──> cache/<sou
 
 ## 9. Milestones and done-checks
 
-Budget: about 4.5 hours of implementation plus download wall time. Each milestone ends with
-`uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .` green, an updated
-AGENTS.md status section and a commit.
+Each milestone ends with `uv run pytest`, `uv run ruff check .` and `uv run ruff format
+--check .` green, an updated AGENTS.md status section and a commit.
 
-| | scope | done-check | budget |
-|---|---|---|---|
-| M1 | `black`, `stats`, `checkpoint` | Black rows of 7.1 to 1e-12; IV round trip on `k in [-2, 2]`, `s in [1e-3, 3]` within 1e-10 where `vega_s > 1e-8`, invalid prices give `nan`; brentq agreement; bootstrap/sign-flip/Holm match hand-computed small cases; resume test skips finished units and retries errors | 45 min |
-| M2 | `models.*`, `synthetic`, optional oracle fixtures | 7.1 SABR and slice formulas to 1e-10; noise-free own-family recovery < 0.01 vol pt; 50 noisy surfaces fit without exceptions; SSVI/eSSVI constraints asserted on every accepted fit | 75 min |
-| M3 | `arbitrage` | Vogt min and interval; admissible SSVI and conditioned eSSVI pairs clean; violating examples flagged; `g` and price checks agree on 200 random SVI slices outside the tolerance band; FD derivatives within 1e-6 of analytic | 35 min |
-| M4 | `quotes`, `data.tardis`, `data.deribit`, `data` CLI | 7.4 offline tests; manual live Deribit smoke with step counts; filter frozen and logged; quick-study months fetched as the quota allows (`data status`) | 60 min |
-| M5 | `metrics`, `study`, `fit` CLI | 7.2 synthetic end-to-end and resume; report equals recomputation; timing of 3 real units written to config headers | 60 min |
-| M6 | quick study, `REPORT.md`, README, CHANGELOG 0.1.0 | `results/quick-v1/` committed; check that no committed file contains quote-level data; REPORT lists sizes, seeds, versions, missing months, intervals and Holm results | 30 min + wall |
+| | scope | done-check |
+|---|---|---|
+| M1 | `black`, `stats`, `checkpoint` | Black rows of 7.1 to 1e-12; IV round trip on `k in [-2, 2]`, `s in [1e-3, 3]` within 1e-10 where `vega_s > 1e-8`, invalid prices give `nan`; brentq agreement; bootstrap/sign-flip/Holm match hand-computed small cases; resume test skips finished units and retries errors |
+| M2 | `models.*`, `synthetic`, optional oracle fixtures | 7.1 SABR and slice formulas to 1e-10; noise-free own-family recovery < 0.01 vol pt; 50 noisy surfaces fit without exceptions; SSVI/eSSVI constraints asserted on every accepted fit |
+| M3 | `arbitrage` | Vogt min and interval; admissible SSVI and conditioned eSSVI pairs clean; violating examples flagged; `g` and price checks agree on 200 random SVI slices outside the tolerance band; FD derivatives within 1e-6 of analytic |
+| M4 | `quotes`, `data.tardis`, `data.deribit`, `data` CLI | 7.4 offline tests; manual live Deribit smoke with step counts; filter frozen and logged; quick-study months fetched as the quota allows (`data status`) |
+| M5 | `metrics`, `study`, `fit` CLI | 7.2 synthetic end-to-end and resume; report equals recomputation; timing of 3 real units written to config headers |
+| M6 | quick study, `REPORT.md`, README, CHANGELOG 0.1.0 | `results/quick-v1/` committed; check that no committed file contains quote-level data; REPORT lists sizes, seeds, versions, missing months, intervals and Holm results |
 
 ## 10. Risks
 
@@ -745,3 +747,9 @@ Every deviation from sections 4-7, with its reason.
     final. In the Tardis extractor a stream that ends before the gzip trailer (a dropped
     connection) and `http.client` protocol errors are retried as network errors instead of
     marking the month invalid; a full cache stops the session with a message.
+16. **Reporting and milestones (5.3, 6.4, 9).** The data-quality diagnostics of section 5.3
+    were first kept only in the unit files, which are not committed; the summary and
+    leaderboard now carry their medians over dates and the per-step filter counts. `study
+    report` refuses a run without finished units, and `summary.json` holds `null` rather
+    than `NaN`. M6 is open: v0.1.0 carries the synthetic study, and the market-data quick
+    study and `results/quick-v1/` are still to come.

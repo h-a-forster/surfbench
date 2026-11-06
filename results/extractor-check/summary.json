@@ -1,0 +1,80 @@
+{
+  "filter_sha256": "184be3fca2c483d921a847ae336975cdf966b033176366b27e26307914e9fe29",
+  "months": [
+    {
+      "month": "2019-04",
+      "status": "ok",
+      "bytes_streamed": 4194304,
+      "rows_read": 94844,
+      "n_t0": 307,
+      "n_t1": 307,
+      "x_dataset_size": "274614889",
+      "started_at": "2026-11-06T18:22:28.454218+00:00",
+      "sha256": {
+        "snap_t0.csv.gz": "e947611a4537f0e044653cf3e6a0c567b2cd856f3b4528653137bf23dcffdeb8",
+        "snap_t1.csv.gz": "7d6d8a2546bcc290c6ddfe29b421dbb5a3442d96ce843231ce21adcdb5a4f283"
+      },
+      "snapshot_bytes": 16648,
+      "data_quality": {
+        "BTC": {
+          "median_abs_bid_iv_diff_volpt": 0.002913202010440541,
+          "median_parity_forward_gap": 0.002521269095341394
+        },
+        "ETH": {
+          "median_abs_bid_iv_diff_volpt": 0.0022630339626239504,
+          "median_parity_forward_gap": 0.001572753759294998
+        }
+      }
+    },
+    {
+      "month": "2020-01",
+      "status": "ok",
+      "bytes_streamed": 5242880,
+      "rows_read": 83679,
+      "n_t0": 426,
+      "n_t1": 426,
+      "x_dataset_size": "374923734",
+      "started_at": "2026-11-06T18:17:25.175738+00:00",
+      "sha256": {
+        "snap_t0.csv.gz": "51e99866df623633908247dd5056ca1039c4228542bb59d1f49caa71945c629f",
+        "snap_t1.csv.gz": "45dad4f0ac672664fa5b568e533ddc871476f27559c8c1c91623a85091d39d76"
+      },
+      "snapshot_bytes": 22157,
+      "data_quality": {
+        "BTC": {
+          "median_abs_bid_iv_diff_volpt": 0.0023680876269915885,
+          "median_parity_forward_gap": 0.0008225444358587741
+        },
+        "ETH": {
+          "median_abs_bid_iv_diff_volpt": 0.003843900189776095,
+          "median_parity_forward_gap": 0.000436762106428068
+        }
+      }
+    },
+    {
+      "month": "2026-10",
+      "status": "ok",
+      "bytes_streamed": 157286400,
+      "rows_read": 3058580,
+      "n_t0": 1750,
+      "n_t1": 1750,
+      "x_dataset_size": "17932604919",
+      "started_at": "2026-11-06T18:17:57.664656+00:00",
+      "sha256": {
+        "snap_t0.csv.gz": "53046ac156a7f0ea05f78a9c3c65e8ef9739bdf9d7b78e5eec963c2f8007a482",
+        "snap_t1.csv.gz": "6bd93ba343683c13f44c84c442072495d2f813a1eead3e91aa287086775c088c"
+      },
+      "snapshot_bytes": 76075,
+      "data_quality": {
+        "BTC": {
+          "median_abs_bid_iv_diff_volpt": 0.002580777347849228,
+          "median_parity_forward_gap": 0.00021629400915801344
+        },
+        "ETH": {
+          "median_abs_bid_iv_diff_volpt": 0.0027919691397204627,
+          "median_parity_forward_gap": 0.00030287399039063967
+        }
+      }
+    }
+  ]
+}

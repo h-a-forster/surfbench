@@ -13,8 +13,6 @@ from typing import Any
 
 from surfbench import __version__
 
-PENDING: dict[tuple[str, str | None], str] = {}
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -116,13 +114,22 @@ def cmd_fit(args: argparse.Namespace) -> int:
 
 
 def cmd_study_run(args: argparse.Namespace) -> int:
-    from surfbench.study.runner import run_study
+    from surfbench.study.runner import load_study, run_study
 
     counts = run_study(
         args.config, workers=args.workers, force_new=args.force_new, limit=args.limit
     )
     print(f"units: ok {counts['ok']}, error {counts['error']}, skipped {counts['skipped']}")
-    return 0 if counts["error"] == 0 else 1
+    info_path = load_study(args.config).out_dir / "run_info.json"
+    n_missing = len(json.loads(info_path.read_text(encoding="utf-8"))["missing"])
+    if n_missing:
+        print(f"dates missing: {n_missing} (`surfbench data status` lists them)")
+    if counts["error"]:
+        return 1
+    if n_missing and not any(counts.values()):
+        print("surfbench: no snapshots to run; download them first", file=sys.stderr)
+        return 2
+    return 0
 
 
 def cmd_study_report(args: argparse.Namespace) -> int:
@@ -150,11 +157,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.print_help()
         return 0
     key = (args.command, getattr(args, "action", None))
-    milestone = PENDING.get(key)
-    if milestone is not None:
-        name = " ".join(k for k in key if k)
-        print(f"surfbench {name}: not implemented yet (milestone {milestone})", file=sys.stderr)
-        return 2
     from surfbench.checkpoint import RunMismatchError
 
     try:

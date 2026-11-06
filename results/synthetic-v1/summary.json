@@ -335,6 +335,33 @@
           }
         }
       },
+      "data_quality": {
+        "filter_counts_t0": {
+          "age": 11830,
+          "expiry_window": 10710,
+          "forward": 11712,
+          "input": 11830,
+          "iv": 5023,
+          "otm": 5324,
+          "slice": 5023,
+          "symbol": 11830,
+          "two_sided": 11712
+        },
+        "filter_counts_t1": {
+          "age": 11830,
+          "expiry_window": 10697,
+          "forward": 11698,
+          "input": 11830,
+          "iv": 5011,
+          "otm": 5311,
+          "slice": 5011,
+          "symbol": 11830,
+          "two_sided": 11698
+        },
+        "median_abs_bid_iv_diff_volpt": 3.885780586188048e-14,
+        "median_parity_forward_gap": 0.0,
+        "median_present_at_t1_share": 0.9827176976709686
+      },
       "dates": [
         "2024-01-01",
         "2024-02-01",
@@ -1067,6 +1094,33 @@
             "n": 8
           }
         }
+      },
+      "data_quality": {
+        "filter_counts_t0": {
+          "age": 11926,
+          "expiry_window": 10737,
+          "forward": 11831,
+          "input": 11926,
+          "iv": 4980,
+          "otm": 5345,
+          "slice": 4980,
+          "symbol": 11926,
+          "two_sided": 11831
+        },
+        "filter_counts_t1": {
+          "age": 11926,
+          "expiry_window": 10733,
+          "forward": 11821,
+          "input": 11926,
+          "iv": 4972,
+          "otm": 5341,
+          "slice": 4972,
+          "symbol": 11926,
+          "two_sided": 11821
+        },
+        "median_abs_bid_iv_diff_volpt": 3.885780586188048e-14,
+        "median_parity_forward_gap": 0.0,
+        "median_present_at_t1_share": 0.9844154792746114
       },
       "dates": [
         "2024-01-01",

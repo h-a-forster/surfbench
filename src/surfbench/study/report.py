@@ -20,7 +20,12 @@ import numpy as np
 import scipy
 
 from surfbench import __version__
-from surfbench.checkpoint import UnitStore, atomic_write_bytes, atomic_write_json
+from surfbench.checkpoint import (
+    RunMismatchError,
+    UnitStore,
+    atomic_write_bytes,
+    atomic_write_json,
+)
 from surfbench.quotes import FilterConfig
 from surfbench.stats import (
     bootstrap_mean,
@@ -31,6 +36,7 @@ from surfbench.stats import (
 )
 from surfbench.study.runner import (
     StudyConfig,
+    _nan_to_none,
     check_run_matches,
     expected_unit_ids,
     load_study,
@@ -53,6 +59,17 @@ ARB_SHARES = (
     ("bfly_viol_inrange", "n_bfly_inrange", "n_slices_checked"),
     ("price_viol_wide", "n_price_wide", "n_slices_checked"),
     ("cal_viol", "n_cal", "n_pairs"),
+)
+FILTER_STEPS = (
+    "input",
+    "symbol",
+    "age",
+    "two_sided",
+    "forward",
+    "expiry_window",
+    "otm",
+    "iv",
+    "slice",
 )
 
 
@@ -109,6 +126,23 @@ def _regime_diff(a: np.ndarray, b: np.ndarray, n_boot: int, alpha: float, seed: 
         "hi": float(hi),
         "n_stress": int(a.size),
         "n_calm": int(b.size),
+    }
+
+
+def _data_quality(units: list[dict[str, Any]]) -> dict[str, Any]:
+    """Medians over dates of the DESIGN 5.3 diagnostics, and filter counts summed over dates."""
+
+    def median(values: list[Any]) -> float | None:
+        a = np.array([_val(v) for v in values])
+        return float(np.median(a[np.isfinite(a)])) if np.isfinite(a).any() else None
+
+    dq = [u.get("data_quality", {}) for u in units]
+    return {
+        "median_abs_bid_iv_diff_volpt": median([d.get("median_abs_bid_iv_diff_volpt") for d in dq]),
+        "median_parity_forward_gap": median([d.get("median_parity_forward_gap") for d in dq]),
+        "median_present_at_t1_share": median([u.get("present_at_t1_share") for u in units]),
+        "filter_counts_t0": {s: sum(u["counts_t0"].get(s, 0) for u in units) for s in FILTER_STEPS},
+        "filter_counts_t1": {s: sum(u["counts_t1"].get(s, 0) for u in units) for s in FILTER_STEPS},
     }
 
 
@@ -186,6 +220,7 @@ def build_summary(cfg: StudyConfig) -> dict[str, Any]:
             "metrics": {},
             "arbitrage": {},
             "failures": {},
+            "data_quality": _data_quality(uu),
         }
         for metric in ACCURACY_METRICS:
             mat = _metric_matrix(uu, models, metric)
@@ -322,6 +357,10 @@ def _fmt_p(p: float) -> str:
     return f"{p:.1e}" if p < 1e-3 else f"{p:.4f}"
 
 
+def _fmt_dq(x: float | None, spec: str) -> str:
+    return "n/a" if x is None else format(x, spec)
+
+
 def render_leaderboard(summary: dict[str, Any]) -> str:
     models = summary["models"]
     prov = summary["provenance"]
@@ -388,6 +427,18 @@ def render_leaderboard(summary: dict[str, Any]) -> str:
                     f"| {m} | " + " | ".join(_fmt_iv(b["by_truth"][t][m]) for t in truths) + " |"
                 )
             lines.append("")
+        dq = b["data_quality"]
+        lines += [
+            "Data quality (medians over dates): our bid IV against the provider's, "
+            f"{_fmt_dq(dq['median_abs_bid_iv_diff_volpt'], '.4f')} vol points; put-call-parity "
+            f"forward against the forward used, {_fmt_dq(dq['median_parity_forward_gap'], '.2e')} "
+            "relative gap; filtered `t0` quotes still filtered at `t1`, "
+            f"{_fmt_dq(dq['median_present_at_t1_share'], '.1%')}. Quotes left after each filter "
+            "step at `t0`, summed over dates: "
+            + ", ".join(f"{s} {n}" for s, n in dq["filter_counts_t0"].items())
+            + ".",
+            "",
+        ]
         rc = b["regime_counts"]
         if rc.get("stress", 0) and rc.get("calm", 0):
             lines += [
@@ -437,7 +488,9 @@ def write_report(config: Path, root: Path | None = None) -> Path:
     cfg = load_study(config, root)
     check_run_matches(cfg)
     summary = build_summary(cfg)
+    if not summary["by_underlying"]:
+        raise RunMismatchError(f"no finished units in study {cfg.name!r}; nothing to report")
     out = cfg.results_dir
-    atomic_write_json(out / "summary.json", summary)
+    atomic_write_json(out / "summary.json", _nan_to_none(summary))  # NaN is not valid JSON
     atomic_write_bytes(out / "leaderboard.md", render_leaderboard(summary).encode("utf-8"))
     return out

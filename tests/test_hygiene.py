@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,24 @@ def test_no_local_paths_in_committed_text() -> None:
         text = p.read_text(encoding="utf-8", errors="replace")
         for pat in PATH_PATTERNS:
             assert not pat.search(text), (p.name, pat.pattern)
+
+
+def test_github_actions_are_pinned_to_commit_shas() -> None:
+    uses = re.findall(r"uses:\s*(\S+)", (ROOT / ".github/workflows/ci.yml").read_text("utf-8"))
+    assert uses, "no actions found"
+    assert [u for u in uses if not re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", u)] == []
+
+
+def test_readme_links_ship_in_the_sdist() -> None:
+    with (ROOT / "pyproject.toml").open("rb") as fh:
+        include = tomllib.load(fh)["tool"]["hatch"]["build"]["targets"]["sdist"]["include"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    links = {u for u in re.findall(r"\]\(([^)#]+)\)", readme) if "://" not in u}
+    assert links, "no relative links found"
+    for link in links:
+        assert (ROOT / link).exists(), link
+    tops = {link.split("/")[0] for link in links} - {"pyproject.toml"}  # always in an sdist
+    assert tops <= set(include), tops - set(include)
 
 
 def test_every_package_module_is_tracked_by_git() -> None:

@@ -7,8 +7,8 @@ bootstrap intervals and Holm-adjusted pairwise tests.
 
 **All published results are synthetic.** The market-data quick study on Deribit data has not
 been run; nothing in this release is a statement about real option markets. REPORT.md
-section 3 lists what that study needs (free Tardis.dev downloads over several daily quota
-windows, about 9 minutes of compute).
+section 3 lists what that study needs (free Tardis.dev downloads, possibly over several daily
+quota windows, and about 9 minutes of compute).
 
 ## What is included
 
@@ -31,6 +31,21 @@ package missing from git and wheels (unanchored ignore rule); eSSVI calendar con
 were necessary but not sufficient (now Mingone's sufficient conditions; synthetic results
 unchanged to about 1e-8 vol point); several run-provenance and resume issues; Tardis retries
 on dropped connections. Details in CHANGELOG.md.
+
+## Changed after the 2026-10-30 changelog entry
+
+- The Tardis extractor ran on the real files of 2019-04, 2020-01 and 2026-10
+  (`scripts/extractor_check.py`, `results/extractor-check/`); its layout assumptions and the
+  quote conventions hold on them.
+- The summary and leaderboard report the data-quality diagnostics and per-step filter counts,
+  which were only in the uncommitted unit files. `results/synthetic-v1/` was regenerated from
+  the same units; every other number is unchanged.
+- `study run` says how many dates are missing and exits with 2 when no snapshot exists;
+  `study report` refuses a run without finished units instead of writing an empty
+  leaderboard; `summary.json` is strict JSON (`null`, not `NaN`).
+- Removed the unused `plot` extra and leftover CLI scaffolding. The source distribution now
+  includes the documents the README links to and the committed results.
+- CI: actions pinned to commit SHAs, checkout credentials not persisted.
 
 ## Requirements
 

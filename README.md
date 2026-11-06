@@ -32,9 +32,10 @@ together (searched 2026-10-23; see `docs/DESIGN.md` section 12).
 > **Status: v0.1.0. All published results are synthetic.** Every component is implemented
 > and tested, and a 24-month synthetic validation study has run end to end
 > ([REPORT.md](REPORT.md)). The quick study on Deribit data has not been run, so nothing in
-> this repository is a statement about real option markets yet. Running it needs the
-> free Tardis.dev downloads (projected 2-3 GB streamed but only tens of MB kept, spread over
-> several daily quota windows) and about 9 minutes of compute; see
+> this repository is a statement about real option markets yet. The extractor has been
+> checked on three real files. The study needs the rest of the free Tardis.dev downloads
+> (projected 2-3 GB streamed but only a few MB kept, possibly over several daily quota
+> windows) and about 9 minutes of compute; see
 > [The market-data study](#the-market-data-study).
 
 ## Models
@@ -133,8 +134,9 @@ uv run surfbench study report --config configs/study_quick.toml
 
 The quick study covers 28 quarterly dates (January, April, July and October 2020-2026) with
 a 15-minute horizon; `configs/study_full.toml` covers every month from 2019-04 with a
-60-minute horizon. The free download quota is undocumented: after about a dozen files the
-server answered `429` with a 24-hour `Retry-After`. The extractor records the lock in
+60-minute horizon. The free download quota is undocumented: during development, after about
+a dozen files, the server answered `429` with a 24-hour `Retry-After`. The extractor records
+the lock in
 `cache/tardis/_quota.json`, makes no request until it expires, and fetches months in a seeded
 random order so that a partial download is a random subset rather than a chronological
 prefix. Compute is about 30 seconds per (date, underlying) unit on one core (measured on 4 live
@@ -176,7 +178,11 @@ study you download the data yourself under the provider's terms.
   numbers equal a direct recomputation from the unit files.
 - **Data adapters**: the Tardis extractor is tested offline against synthetic gzip streams
   (state dump, ordered updates, linear options to drop, malformed rows, decreasing
-  timestamps, 404, 429, timeouts, cache cap, byte-identical re-extraction).
+  timestamps, 404, 429, timeouts, cache cap, byte-identical re-extraction) and has run on
+  the real files of 2019-04, 2020-01 and 2026-10 (`scripts/extractor_check.py`, results in
+  `results/extractor-check/`): our bid IVs are within a median 0.002 to 0.004 vol point of
+  the provider's, and the put-call-parity forward within a median 0.02% to 0.25% of the
+  forward used, which checks the time, forward and coin-price conventions on real quotes.
 
 ## Documentation
 
@@ -184,6 +190,8 @@ study you download the data yourself under the provider's terms.
   and every deviation from the original plan (section 13).
 - [REPORT.md](REPORT.md): what has been run, with numbers, intervals and limitations.
 - [AGENTS.md](AGENTS.md): conventions, architecture map and current status.
+- [backlog.md](backlog.md): open work.
+- [backlog.md](backlog.md): open work.
 
 ## Citation
 
