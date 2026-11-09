@@ -193,7 +193,6 @@ study you download the data yourself under the provider's terms.
   and every deviation from the original plan (section 13).
 - [REPORT.md](REPORT.md): what has been run, with numbers, intervals and limitations.
 - [AGENTS.md](AGENTS.md): conventions, architecture map and current status.
-- [backlog.md](backlog.md): open work.
 
 ## Citation
 

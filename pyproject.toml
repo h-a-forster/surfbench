@@ -47,7 +47,7 @@ packages = ["src/surfbench"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/surfbench", "tests", "docs", "configs", "scripts", "results", "README.md", "REPORT.md",
-    "AGENTS.md", "backlog.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CITATION.cff",
+    "AGENTS.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md", "CITATION.cff",
 ]
 
 [tool.pytest.ini_options]
