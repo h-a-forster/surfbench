@@ -34,7 +34,8 @@ comparisons.
   Do not retry a locked-out quota.
 - Scratch files go in `tmp/` (gitignored). No `.bak` copies; use git.
 - No absolute local paths, user names or machine details in committed files or logs.
-- Do not push; publishing is done separately after review.
+- The repository is public on GitHub; pushes, tags and releases are done by the owner
+  after review.
 - Statistical honesty: report sizes, seeds, versions and intervals; Holm on the primary
   family only (DESIGN 6.1); never overstate. Before calling anything a third-party bug,
   produce a minimal repro and rule out an adapter or convention mistake (DESIGN 7.5).
